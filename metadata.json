@@ -1,0 +1,8 @@
+{
+  "name": "Great Focus Multimedia",
+  "description": "Professional multimedia studio app for booking video production, graphic design, and creative services in Malawi.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
