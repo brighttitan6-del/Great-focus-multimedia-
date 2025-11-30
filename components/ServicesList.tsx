@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { ViewState, ServiceItem } from '../types';
-import { Video, Camera, Palette, Activity, TrendingUp, Music, Loader2, ChevronDown, ChevronUp, Clock, Check, Search, Filter, ArrowUpDown, Globe, Smartphone, GraduationCap, PlayCircle, Maximize2, X } from 'lucide-react';
+import { Video, Camera, Palette, Activity, TrendingUp, Music, Loader2, ChevronDown, ChevronUp, Clock, Check, Search, Filter, ArrowUpDown, Globe, Smartphone, GraduationCap, PlayCircle, Maximize2, X, DollarSign } from 'lucide-react';
 import { CustomVideoPlayer } from './CustomVideoPlayer';
 
 interface ServicesListProps {
@@ -32,6 +33,7 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
   // Filter & Sort State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [priceFilter, setPriceFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('default');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -69,7 +71,19 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
       const matchesSearch = service.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             service.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'All' || service.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      
+      // Price Range Filter
+      const price = getPriceValue(service.priceStart);
+      let matchesPrice = true;
+      if (priceFilter === 'Under MK 100k') {
+        matchesPrice = price < 100000;
+      } else if (priceFilter === 'MK 100k - 300k') {
+        matchesPrice = price >= 100000 && price <= 300000;
+      } else if (priceFilter === 'Over MK 300k') {
+        matchesPrice = price > 300000;
+      }
+
+      return matchesSearch && matchesCategory && matchesPrice;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -89,8 +103,8 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
           <p className="text-gray-400 max-w-2xl mx-auto mb-8">We offer a comprehensive range of production services designed to elevate your brand and capture your most important moments.</p>
           
           {/* Search & Filter Bar */}
-          <div className="max-w-4xl mx-auto bg-white/5 border border-white/10 rounded-xl p-4 shadow-lg backdrop-blur-sm relative z-20">
-            <div className="flex flex-col md:flex-row gap-4">
+          <div className="max-w-5xl mx-auto bg-white/5 border border-white/10 rounded-xl p-4 shadow-lg backdrop-blur-sm relative z-20">
+            <div className="flex flex-col lg:flex-row gap-4">
               {/* Search Input */}
               <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -105,16 +119,16 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
 
               {/* Mobile Filter Toggle */}
               <button 
-                className="md:hidden flex items-center justify-center gap-2 bg-white/10 p-3 rounded-lg text-white"
+                className="lg:hidden flex items-center justify-center gap-2 bg-white/10 p-3 rounded-lg text-white"
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="h-5 w-5" /> Filters
               </button>
 
               {/* Filters Container */}
-              <div className={`${showFilters ? 'flex' : 'hidden'} md:flex flex-col md:flex-row gap-4`}>
+              <div className={`${showFilters ? 'flex' : 'hidden'} lg:flex flex-col md:flex-row gap-4 flex-wrap`}>
                 {/* Category Dropdown */}
-                <div className="relative min-w-[160px]">
+                <div className="relative min-w-[160px] flex-1">
                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <select
                     value={selectedCategory}
@@ -128,8 +142,24 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
                   <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
                 </div>
 
+                {/* Price Filter Dropdown */}
+                <div className="relative min-w-[160px] flex-1">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <select
+                    value={priceFilter}
+                    onChange={(e) => setPriceFilter(e.target.value)}
+                    className="w-full appearance-none bg-black/20 border border-white/10 rounded-lg py-3 pl-10 pr-8 text-white focus:outline-none focus:border-brand-primary cursor-pointer"
+                  >
+                    <option value="All" className="bg-gray-800">Any Price</option>
+                    <option value="Under MK 100k" className="bg-gray-800">Under MK 100k</option>
+                    <option value="MK 100k - 300k" className="bg-gray-800">MK 100k - 300k</option>
+                    <option value="Over MK 300k" className="bg-gray-800">Over MK 300k</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+                </div>
+
                 {/* Sort Dropdown */}
-                <div className="relative min-w-[160px]">
+                <div className="relative min-w-[160px] flex-1">
                   <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <select
                     value={sortBy}
@@ -148,14 +178,15 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
             </div>
             
             {/* Active Filters Summary */}
-            {(selectedCategory !== 'All' || sortBy !== 'default' || searchQuery) && (
-              <div className="flex items-center gap-2 mt-4 text-xs text-gray-400 animate-fade-in">
+            {(selectedCategory !== 'All' || priceFilter !== 'All' || sortBy !== 'default' || searchQuery) && (
+              <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-gray-400 animate-fade-in">
                 <span>Active Filters:</span>
                 {selectedCategory !== 'All' && <span className="bg-brand-primary/20 text-brand-primary px-2 py-1 rounded border border-brand-primary/30">{selectedCategory}</span>}
+                {priceFilter !== 'All' && <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30">{priceFilter}</span>}
                 {sortBy !== 'default' && <span className="bg-white/10 px-2 py-1 rounded border border-white/10">Sorted</span>}
                 {searchQuery && <span className="bg-white/10 px-2 py-1 rounded border border-white/10">Search: "{searchQuery}"</span>}
                 <button 
-                  onClick={() => {setSelectedCategory('All'); setSortBy('default'); setSearchQuery('');}}
+                  onClick={() => {setSelectedCategory('All'); setPriceFilter('All'); setSortBy('default'); setSearchQuery('');}}
                   className="text-red-400 hover:text-red-300 ml-auto flex items-center gap-1"
                 >
                   <span className="h-4 w-4 flex items-center justify-center rounded-full border border-current text-[10px]">✕</span> Clear
@@ -280,7 +311,7 @@ export const ServicesList: React.FC<ServicesListProps> = ({ onNavigate, onBookSe
                 <h3 className="text-xl font-bold text-white mb-2">No services found</h3>
                 <p className="text-gray-400">Try adjusting your search or filters to find what you're looking for.</p>
                 <button 
-                  onClick={() => {setSelectedCategory('All'); setSortBy('default'); setSearchQuery('');}}
+                  onClick={() => {setSelectedCategory('All'); setPriceFilter('All'); setSortBy('default'); setSearchQuery('');}}
                   className="mt-6 text-brand-primary hover:text-white font-medium"
                 >
                   Clear all filters
