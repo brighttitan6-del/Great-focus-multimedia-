@@ -1,3 +1,4 @@
+
 import { ServiceCategory, ServiceItem, PortfolioItem, Booking, Testimonial } from './types';
 
 export const COMPANY_INFO = {
@@ -22,7 +23,12 @@ export const SERVICES: ServiceItem[] = [
     priceStart: 'MK 150,000',
     category: ServiceCategory.VIDEO_PRODUCTION,
     iconName: 'video',
-    imageUrl: 'https://picsum.photos/800/600?random=1'
+    imageUrl: 'https://picsum.photos/800/600?random=1',
+    packages: [
+      { name: 'Silver Package', price: 'MK 150,000', time: '1 Week' },
+      { name: 'Gold Package', price: 'MK 250,000', time: '2 Weeks' },
+      { name: 'Platinum (Drone + 4K)', price: 'MK 400,000', time: '3 Weeks' }
+    ]
   },
   {
     id: 's2',
@@ -31,7 +37,11 @@ export const SERVICES: ServiceItem[] = [
     priceStart: 'MK 40,000',
     category: ServiceCategory.GRAPHIC_DESIGN,
     iconName: 'palette',
-    imageUrl: 'https://picsum.photos/800/600?random=2'
+    imageUrl: 'https://picsum.photos/800/600?random=2',
+    packages: [
+      { name: 'Logo Only', price: 'MK 40,000', time: '3 Days' },
+      { name: 'Full Branding Kit', price: 'MK 120,000', time: '1 Week' }
+    ]
   },
   {
     id: 's3',
@@ -40,7 +50,11 @@ export const SERVICES: ServiceItem[] = [
     priceStart: 'MK 85,000',
     category: ServiceCategory.MOTION_GRAPHICS,
     iconName: 'activity',
-    imageUrl: 'https://picsum.photos/800/600?random=3'
+    imageUrl: 'https://picsum.photos/800/600?random=3',
+    packages: [
+      { name: '15s Social Teaser', price: 'MK 85,000', time: '4 Days' },
+      { name: '30s Full Ad', price: 'MK 150,000', time: '1 Week' }
+    ]
   },
   {
     id: 's4',
@@ -49,7 +63,11 @@ export const SERVICES: ServiceItem[] = [
     priceStart: 'MK 50,000',
     category: ServiceCategory.PHOTOGRAPHY,
     iconName: 'camera',
-    imageUrl: 'https://picsum.photos/800/600?random=4'
+    imageUrl: 'https://picsum.photos/800/600?random=4',
+    packages: [
+      { name: 'Half Day Coverage', price: 'MK 50,000', time: '3 Days' },
+      { name: 'Full Day + Editing', price: 'MK 100,000', time: '1 Week' }
+    ]
   },
   {
     id: 's5',
@@ -58,7 +76,11 @@ export const SERVICES: ServiceItem[] = [
     priceStart: 'MK 60,000',
     category: ServiceCategory.DIGITAL_MARKETING,
     iconName: 'trending-up',
-    imageUrl: 'https://picsum.photos/800/600?random=5'
+    imageUrl: 'https://picsum.photos/800/600?random=5',
+    packages: [
+      { name: 'Starter Boost', price: 'MK 60,000', time: 'Monthly' },
+      { name: 'Growth Partner', price: 'MK 150,000', time: 'Monthly' }
+    ]
   },
   {
     id: 's6',
@@ -67,15 +89,45 @@ export const SERVICES: ServiceItem[] = [
     priceStart: 'MK 200,000',
     category: ServiceCategory.VIDEO_PRODUCTION,
     iconName: 'music',
-    imageUrl: 'https://picsum.photos/800/600?random=6'
+    imageUrl: 'https://picsum.photos/800/600?random=6',
+    packages: [
+      { name: 'Performance Video', price: 'MK 200,000', time: '2 Weeks' },
+      { name: 'Concept Video (Scripted)', price: 'MK 350,000', time: '3 Weeks' }
+    ]
   }
 ];
 
 export const PORTFOLIO_ITEMS: PortfolioItem[] = [
-  { id: 'p1', title: 'Chikondi & Tiyese Wedding', category: 'Wedding', imageUrl: 'https://picsum.photos/400/300?random=10', type: 'video' },
-  { id: 'p2', title: 'TechCorp Launch Ad', category: 'Advertising', imageUrl: 'https://picsum.photos/400/300?random=11', type: 'video' },
-  { id: 'p3', title: 'Lilongwe Jazz Fest', category: 'Photography', imageUrl: 'https://picsum.photos/400/300?random=12', type: 'image' },
-  { id: 'p4', title: 'AutoFix Rebrand', category: 'Graphic Design', imageUrl: 'https://picsum.photos/400/300?random=13', type: 'image' },
+  { 
+    id: 'p1', 
+    title: 'Chikondi & Tiyese Wedding', 
+    category: 'Wedding', 
+    imageUrl: 'https://picsum.photos/400/300?random=10', 
+    type: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ'
+  },
+  { 
+    id: 'p2', 
+    title: 'TechCorp Launch Ad', 
+    category: 'Advertising', 
+    imageUrl: 'https://picsum.photos/400/300?random=11', 
+    type: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=ysz5S6P_280'
+  },
+  { 
+    id: 'p3', 
+    title: 'Lilongwe Jazz Fest', 
+    category: 'Photography', 
+    imageUrl: 'https://picsum.photos/400/300?random=12', 
+    type: 'image' 
+  },
+  { 
+    id: 'p4', 
+    title: 'AutoFix Rebrand', 
+    category: 'Graphic Design', 
+    imageUrl: 'https://picsum.photos/400/300?random=13', 
+    type: 'image' 
+  },
 ];
 
 export const MOCK_BOOKINGS: Booking[] = [

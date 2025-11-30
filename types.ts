@@ -1,3 +1,4 @@
+
 export enum ViewState {
   HOME = 'HOME',
   SERVICES = 'SERVICES',
@@ -25,6 +26,11 @@ export interface ServiceItem {
   category: ServiceCategory;
   iconName: string;
   imageUrl: string;
+  packages?: {
+    name: string;
+    price: string;
+    time: string;
+  }[];
 }
 
 export interface Booking {
@@ -42,6 +48,7 @@ export interface PortfolioItem {
   category: string;
   imageUrl: string;
   type: 'video' | 'image';
+  videoUrl?: string;
 }
 
 export interface ChatMessage {

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Plus, Image as ImageIcon, Video, X, Clock, UploadCloud } from 'lucide-react';
+
+import React, { useState, useRef } from 'react';
+import { Plus, Image as ImageIcon, Video, X, Clock, Trash2, CheckCircle, DollarSign } from 'lucide-react';
 import { ServiceCategory } from '../types';
 
 interface ServiceUploadFormProps {
@@ -10,7 +11,13 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel }
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ServiceCategory>(ServiceCategory.VIDEO_PRODUCTION);
   const [description, setDescription] = useState('');
+  const [priceStart, setPriceStart] = useState('');
   const [packages, setPackages] = useState([{ name: 'Standard', price: '', time: '3 Days' }]);
+  
+  // File Upload State
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddPackage = () => {
     setPackages([...packages, { name: '', price: '', time: '1 Week' }]);
@@ -26,9 +33,43 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel }
     setPackages(packages.filter((_, i) => i !== index));
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles: File[] = Array.from(e.target.files);
+      
+      // Basic validation: check size (max 50MB) and type
+      const validFiles = newFiles.filter(file => {
+        const isValidType = file.type.startsWith('image/') || file.type.startsWith('video/');
+        const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB
+        return isValidType && isValidSize;
+      });
+
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+
+      // Create previews
+      const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+      setPreviews(prev => [...prev, ...newPreviews]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    const newFiles = [...selectedFiles];
+    const newPreviews = [...previews];
+    
+    // Revoke URL to prevent memory leaks
+    URL.revokeObjectURL(newPreviews[index]);
+
+    newFiles.splice(index, 1);
+    newPreviews.splice(index, 1);
+    
+    setSelectedFiles(newFiles);
+    setPreviews(newPreviews);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Simulate submission logic here
+    console.log("Submitting service:", { title, category, description, priceStart, packages, files: selectedFiles });
     onCancel();
   };
 
@@ -68,6 +109,25 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel }
             </select>
           </div>
         </div>
+        
+        {/* Starting Price Input */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Starting Price (Display Amount)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-3 text-gray-500 font-bold text-sm">MK</span>
+                <input 
+                  type="text" 
+                  value={priceStart}
+                  onChange={(e) => setPriceStart(e.target.value)}
+                  placeholder="e.g. 150,000" 
+                  className="w-full bg-black/30 border border-gray-700 rounded-lg p-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary transition-all" 
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">This amount will be displayed on the service card.</p>
+            </div>
+        </div>
 
         {/* Description */}
         <div>
@@ -85,7 +145,18 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel }
         {/* Media Upload */}
         <div>
            <label className="block text-sm text-gray-400 mb-2">Portfolio Media (Images & Video)</label>
-           <div className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center hover:bg-gray-700/30 transition-colors cursor-pointer group">
+           <input 
+             type="file" 
+             ref={fileInputRef} 
+             onChange={handleFileSelect} 
+             className="hidden" 
+             multiple 
+             accept="image/*,video/*"
+           />
+           <div 
+             onClick={() => fileInputRef.current?.click()}
+             className="border-2 border-dashed border-gray-700 rounded-lg p-8 text-center hover:bg-gray-700/30 transition-colors cursor-pointer group"
+           >
               <div className="flex justify-center gap-4 mb-3">
                 <div className="p-3 bg-gray-800 rounded-full group-hover:bg-brand-primary/20 transition-colors">
                    <ImageIcon className="h-6 w-6 text-gray-400 group-hover:text-brand-primary" />
@@ -97,6 +168,31 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel }
               <p className="text-gray-300 font-medium text-sm">Click to upload or drag and drop</p>
               <p className="text-gray-500 text-xs mt-1">SVG, PNG, JPG or MP4 (max 50MB)</p>
            </div>
+
+           {/* Preview Grid */}
+           {selectedFiles.length > 0 && (
+             <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+               {previews.map((src, index) => (
+                 <div key={index} className="relative group rounded-lg overflow-hidden border border-gray-700 aspect-video bg-black">
+                   {selectedFiles[index].type.startsWith('image') ? (
+                     <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                   ) : (
+                     <video src={src} className="w-full h-full object-cover" />
+                   )}
+                   <button 
+                     type="button"
+                     onClick={() => removeFile(index)}
+                     className="absolute top-1 right-1 bg-red-600/80 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                   >
+                     <X className="h-3 w-3" />
+                   </button>
+                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
+                      <p className="text-xs text-white truncate px-1">{selectedFiles[index].name}</p>
+                   </div>
+                 </div>
+               ))}
+             </div>
+           )}
         </div>
 
         {/* Package Builder */}
@@ -140,7 +236,7 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel }
                 <div className="md:col-span-4 relative">
                   <span className="absolute left-0 top-2 text-gray-500 text-sm">MK</span>
                   <input 
-                    type="number" 
+                    type="text" 
                     value={pkg.price}
                     onChange={(e) => handlePackageChange(idx, 'price', e.target.value)}
                     className="w-full bg-transparent border-b border-gray-700 text-white p-2 pl-8 text-sm focus:border-brand-primary outline-none placeholder-gray-500" 

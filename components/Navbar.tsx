@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ViewState, User } from '../types';
-import { Menu, X, Camera, User as UserIcon, LogOut, Settings } from 'lucide-react';
+import { Menu, X, Camera, LogOut, Settings } from 'lucide-react';
 
 interface NavbarProps {
   currentView: ViewState;
