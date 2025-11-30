@@ -13,4 +13,13 @@ const bookingSchema = new mongoose.Schema({
   depositPaid: { type: Boolean, default: false }
 }, { timestamps: true });
 
+bookingSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+  }
+});
+
 module.exports = mongoose.model('Booking', bookingSchema);

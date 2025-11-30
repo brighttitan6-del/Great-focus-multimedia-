@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SERVICES } from '../constants';
 import { ServiceItem } from '../types';
-import { Check, Calendar, Clock, CreditCard, UploadCloud, CheckCircle, Home, Download } from 'lucide-react';
+import { Check, Calendar, Clock, CreditCard, UploadCloud, CheckCircle, Home, Download, AlertCircle } from 'lucide-react';
 
 interface BookingFlowProps {
   preSelectedServiceId?: string;
@@ -24,6 +24,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
     notes: '',
     paymentMethod: 'airtel' // airtel, tnm, card
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleServiceSelect = (id: string) => {
     setSelectedService(SERVICES.find(s => s.id === id));
@@ -32,11 +33,67 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear error when user types
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    const now = new Date();
+
+    // Name Validation
+    if (!formData.name.trim()) newErrors.name = 'Full name is required';
+
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Phone Validation (International)
+    // Clean spaces, dashes, parentheses
+    const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
+    const phoneRegex = /^\+?[0-9]{7,15}$/;
+    
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!phoneRegex.test(cleanPhone)) {
+      newErrors.phone = 'Enter a valid phone number (e.g. +1 234...)';
+    }
+
+    // Date & Time Validation
+    if (!formData.date) newErrors.date = 'Date is required';
+    if (!formData.time) newErrors.time = 'Time is required';
+
+    if (formData.date && formData.time) {
+      const selectedDateTime = new Date(`${formData.date}T${formData.time}`);
+      if (selectedDateTime <= now) {
+        newErrors.date = 'Please select a future date and time';
+        newErrors.time = ' ';
+      }
+    } else if (formData.date) {
+        // If only date provided so far, check if date is in past (simple check)
+        const selectedDate = new Date(formData.date);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (selectedDate < today) {
+            newErrors.date = 'Date cannot be in the past';
+        }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(3); // Go to payment
+    if (validateForm()) {
+      setStep(3); // Go to payment
+    }
   };
 
   const handlePayment = () => {
@@ -53,6 +110,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
     const amount = parseInt(priceStr.replace(/[^0-9]/g, ''));
     return isNaN(amount) ? '0' : (amount / 2).toLocaleString();
   };
+
+  const getInputClass = (fieldName: string) => `
+    w-full bg-black/30 border rounded-lg p-3 text-white outline-none focus:ring-1 transition-all
+    ${errors[fieldName] 
+      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+      : 'border-white/10 focus:border-brand-primary focus:ring-brand-primary'}
+  `;
 
   return (
     <div className="py-12 bg-brand-dark min-h-screen">
@@ -117,17 +181,41 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Full Name</label>
-                  <input required name="name" onChange={handleChange} value={formData.name} type="text" className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-brand-primary outline-none" placeholder="Enter your name" />
+                  <input 
+                    name="name" 
+                    onChange={handleChange} 
+                    value={formData.name} 
+                    type="text" 
+                    className={getInputClass('name')}
+                    placeholder="Enter your name" 
+                  />
+                  {errors.name && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Email</label>
-                  <input required name="email" onChange={handleChange} value={formData.email} type="email" className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-brand-primary outline-none" placeholder="Enter your email" />
+                  <input 
+                    name="email" 
+                    onChange={handleChange} 
+                    value={formData.email} 
+                    type="email" 
+                    className={getInputClass('email')}
+                    placeholder="Enter your email" 
+                  />
+                  {errors.email && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.email}</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Phone (WhatsApp)</label>
-                <input required name="phone" onChange={handleChange} value={formData.phone} type="tel" className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-brand-primary outline-none" placeholder="+265..." />
+                <label className="block text-sm text-gray-400 mb-1">Phone</label>
+                <input 
+                  name="phone" 
+                  onChange={handleChange} 
+                  value={formData.phone} 
+                  type="tel" 
+                  className={getInputClass('phone')}
+                  placeholder="Enter your phone number" 
+                />
+                {errors.phone && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.phone}</p>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -135,15 +223,30 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <label className="block text-sm text-gray-400 mb-1">Date</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 text-gray-500 h-5 w-5" />
-                    <input required name="date" onChange={handleChange} value={formData.date} type="date" className="w-full bg-black/30 border border-white/10 rounded-lg p-3 pl-10 text-white focus:border-brand-primary outline-none" />
+                    <input 
+                      name="date" 
+                      onChange={handleChange} 
+                      value={formData.date} 
+                      type="date" 
+                      className={`${getInputClass('date')} pl-10`} 
+                      min={new Date().toISOString().split('T')[0]}
+                    />
                   </div>
+                  {errors.date && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.date}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Time</label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-3 text-gray-500 h-5 w-5" />
-                    <input required name="time" onChange={handleChange} value={formData.time} type="time" className="w-full bg-black/30 border border-white/10 rounded-lg p-3 pl-10 text-white focus:border-brand-primary outline-none" />
+                    <input 
+                      name="time" 
+                      onChange={handleChange} 
+                      value={formData.time} 
+                      type="time" 
+                      className={`${getInputClass('time')} pl-10`} 
+                    />
                   </div>
+                  {errors.time && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.time}</p>}
                 </div>
               </div>
 
@@ -185,7 +288,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <input type="radio" name="paymentMethod" value="airtel" checked={formData.paymentMethod === 'airtel'} onChange={handleChange} className="mr-3 w-5 h-5 text-brand-primary" />
                   <div className="flex-1">
                     <span className="text-white font-bold block">Airtel Money</span>
-                    <span className="text-xs text-gray-400">Pay using +265...</span>
+                    <span className="text-xs text-gray-400">Pay using Mobile Money</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-red-600"></div>
                 </label>
@@ -194,7 +297,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <input type="radio" name="paymentMethod" value="tnm" checked={formData.paymentMethod === 'tnm'} onChange={handleChange} className="mr-3 w-5 h-5 text-brand-primary" />
                   <div className="flex-1">
                     <span className="text-white font-bold block">TNM Mpamba</span>
-                    <span className="text-xs text-gray-400">Pay using +265...</span>
+                    <span className="text-xs text-gray-400">Pay using Mobile Money</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-green-600"></div>
                 </label>

@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { User, ViewState } from '../types';
-import { Mail, Lock, User as UserIcon, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { api } from '../services/api';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
@@ -10,6 +12,7 @@ interface AuthScreenProps {
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,28 +21,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) =
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError(null); // Clear error on typing
   };
 
-  const handleEmailAuth = (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      const mockUser: User = {
-        id: 'u-' + Math.random().toString(36).substr(2, 9),
-        name: isSignUp ? formData.name : 'Returning User',
-        email: formData.email,
-        isAdmin: formData.email.includes('admin'), // Simple mock logic for admin
-        avatar: `https://ui-avatars.com/api/?name=${isSignUp ? formData.name : 'User'}&background=2563eb&color=fff`
-      };
-      onLogin(mockUser);
-    }, 1500);
+    try {
+      let user: User;
+      if (isSignUp) {
+        user = await api.register(formData);
+      } else {
+        user = await api.login({ email: formData.email, password: formData.password });
+      }
+      onLogin(user);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || (isSignUp ? 'Registration failed' : 'Login failed'));
+      setIsLoading(false); // Stop loading only on error, success will unmount/redirect
+    }
   };
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
+    setError(null);
     // Simulate Google OAuth delay
     setTimeout(() => {
       setIsLoading(false);
@@ -73,11 +80,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) =
             </p>
           </div>
 
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6 flex items-start gap-3 animate-fade-in">
+              <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-red-400 text-sm font-medium">{error}</p>
+            </div>
+          )}
+
           {/* Google Login Button */}
           <button 
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full bg-white text-gray-900 font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-100 transition-colors mb-6"
+            className="w-full bg-white text-gray-900 font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-100 transition-colors mb-6 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
               <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -110,7 +124,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) =
                   onChange={handleChange}
                   required
                   placeholder="Full Name" 
-                  className="w-full bg-black/30 border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary"
+                  className="w-full bg-black/30 border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary transition-all"
                 />
               </div>
             )}
@@ -124,7 +138,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) =
                 onChange={handleChange}
                 required
                 placeholder="Email Address" 
-                className="w-full bg-black/30 border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary"
+                className="w-full bg-black/30 border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary transition-all"
               />
             </div>
 
@@ -137,14 +151,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) =
                 onChange={handleChange}
                 required
                 placeholder="Password" 
-                className="w-full bg-black/30 border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary"
+                className="w-full bg-black/30 border border-white/10 rounded-lg py-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary transition-all"
               />
             </div>
 
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full bg-brand-primary hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 flex justify-center"
+              className="w-full bg-brand-primary hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center"
             >
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (isSignUp ? 'Create Account' : 'Sign In')}
             </button>
@@ -154,7 +168,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onNavigate }) =
             <p className="text-gray-400 text-sm">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{' '}
               <button 
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError(null);
+                  setFormData({ name: '', email: '', password: '' });
+                }}
                 className="text-brand-accent hover:text-white font-medium ml-1"
               >
                 {isSignUp ? 'Sign In' : 'Sign Up'}

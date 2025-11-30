@@ -1,5 +1,7 @@
 
+
 export enum ViewState {
+  WELCOME = 'WELCOME',
   HOME = 'HOME',
   SERVICES = 'SERVICES',
   PORTFOLIO = 'PORTFOLIO',
@@ -15,7 +17,9 @@ export enum ServiceCategory {
   GRAPHIC_DESIGN = 'Graphic Design',
   PHOTOGRAPHY = 'Photography',
   MOTION_GRAPHICS = 'Motion Graphics',
-  DIGITAL_MARKETING = 'Digital Marketing'
+  DIGITAL_MARKETING = 'Digital Marketing',
+  WEB_DEVELOPMENT = 'Web & App Development',
+  EDUCATION = 'Education & Training'
 }
 
 export interface ServiceItem {
@@ -26,6 +30,8 @@ export interface ServiceItem {
   category: ServiceCategory;
   iconName: string;
   imageUrl: string;
+  videoUrl?: string;
+  isActive?: boolean;
   packages?: {
     name: string;
     price: string;
@@ -38,7 +44,7 @@ export interface Booking {
   clientName: string;
   serviceId: string;
   date: string;
-  status: 'Pending' | 'Confirmed' | 'Completed';
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
   amount: number;
 }
 

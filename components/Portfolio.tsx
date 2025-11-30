@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { PORTFOLIO_ITEMS } from '../constants';
 import { PlayCircle, Image as ImageIcon, X } from 'lucide-react';
-import ReactPlayer from 'react-player';
+import { CustomVideoPlayer } from './CustomVideoPlayer';
 
 export const Portfolio: React.FC = () => {
   const [filter, setFilter] = useState('All');
@@ -80,22 +81,14 @@ export const Portfolio: React.FC = () => {
           >
             <button 
               onClick={() => setSelectedVideo(null)} 
-              className="absolute top-4 right-4 z-10 text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-colors backdrop-blur-md border border-white/10"
+              className="absolute top-4 right-4 z-50 text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-colors backdrop-blur-md border border-white/10"
               aria-label="Close video"
             >
               <X className="w-6 h-6" />
             </button>
-            <ReactPlayer 
+            <CustomVideoPlayer 
               url={selectedVideo} 
-              width="100%" 
-              height="100%" 
-              controls={true}
-              playing={true}
-              config={{
-                youtube: {
-                  playerVars: { showinfo: 1 }
-                }
-              }}
+              autoPlay={true}
             />
           </div>
         </div>

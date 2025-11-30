@@ -1,3 +1,4 @@
+
 import { ServiceItem, Booking, User } from '../types';
 import { SERVICES, MOCK_BOOKINGS } from '../constants';
 
@@ -5,6 +6,10 @@ import { SERVICES, MOCK_BOOKINGS } from '../constants';
 const API_URL = 'http://localhost:5000/api';
 // SET THIS TO FALSE TO USE THE REAL BACKEND
 const USE_MOCK_DATA = true; 
+
+// --- IN-MEMORY DATA STORE (For Mock Mode Persistence) ---
+let mockServices: ServiceItem[] = [...SERVICES];
+let mockBookings: Booking[] = [...MOCK_BOOKINGS];
 
 // --- HELPERS ---
 const getHeaders = () => {
@@ -21,17 +26,26 @@ export const api = {
   getServices: async (): Promise<ServiceItem[]> => {
     if (USE_MOCK_DATA) {
       return new Promise((resolve) => {
-        setTimeout(() => resolve(SERVICES), 500);
+        setTimeout(() => resolve([...mockServices]), 500);
       });
     }
     const res = await fetch(`${API_URL}/services`);
     return res.json();
   },
 
-  createService: async (service: Partial<ServiceItem>) => {
+  createService: async (service: Partial<ServiceItem>): Promise<ServiceItem> => {
     if (USE_MOCK_DATA) {
-      console.log('Mock Create Service:', service);
-      return { id: 'new-' + Date.now(), ...service };
+      return new Promise((resolve) => {
+        const newService = { 
+          ...service, 
+          id: 's-' + Date.now(),
+          imageUrl: service.imageUrl || 'https://picsum.photos/800/600'
+        } as ServiceItem;
+        
+        mockServices = [newService, ...mockServices];
+        console.log('Mock: Service Created', newService);
+        resolve(newService);
+      });
     }
     const res = await fetch(`${API_URL}/services`, {
       method: 'POST',
@@ -41,10 +55,32 @@ export const api = {
     return res.json();
   },
 
+  updateService: async (id: string, updates: Partial<ServiceItem>): Promise<ServiceItem | undefined> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        mockServices = mockServices.map(s => s.id === id ? { ...s, ...updates } : s);
+        resolve(mockServices.find(s => s.id === id));
+      });
+    }
+    // Real backend implementation would go here
+    return undefined;
+  },
+
+  deleteService: async (id: string): Promise<boolean> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        mockServices = mockServices.filter(s => s.id !== id);
+        resolve(true);
+      });
+    }
+    // Real backend implementation would go here
+    return true;
+  },
+
   // BOOKINGS
   getBookings: async (): Promise<Booking[]> => {
     if (USE_MOCK_DATA) {
-      return new Promise((resolve) => setTimeout(() => resolve(MOCK_BOOKINGS), 500));
+      return new Promise((resolve) => setTimeout(() => resolve([...mockBookings]), 500));
     }
     const res = await fetch(`${API_URL}/bookings`, { headers: getHeaders() });
     return res.json();
@@ -52,8 +88,9 @@ export const api = {
 
   createBooking: async (booking: any) => {
     if (USE_MOCK_DATA) {
-      console.log('Mock Create Booking:', booking);
-      return { id: 'b-' + Date.now(), ...booking, status: 'Confirmed' };
+      const newBooking = { id: 'b-' + Date.now(), ...booking, status: 'Confirmed' };
+      mockBookings.push(newBooking);
+      return newBooking;
     }
     const res = await fetch(`${API_URL}/bookings`, {
       method: 'POST',
@@ -63,16 +100,51 @@ export const api = {
     return res.json();
   },
 
+  updateBooking: async (id: string, updates: Partial<Booking>) => {
+    if (USE_MOCK_DATA) {
+       mockBookings = mockBookings.map(b => b.id === id ? { ...b, ...updates } : b);
+       return Promise.resolve(mockBookings.find(b => b.id === id));
+    }
+    // Real backend impl
+  },
+
   // AUTH
   login: async (credentials: any): Promise<User> => {
     if (USE_MOCK_DATA) {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         setTimeout(() => {
+          // ADMIN CREDENTIAL CHECK
+          if (credentials.email === 'admin@greatfocus00123.com') {
+            if (credentials.password === 'grax2650') {
+              resolve({
+                id: 'admin-master',
+                name: 'Great Focus Admin',
+                email: 'admin@greatfocus00123.com',
+                isAdmin: true,
+                avatar: 'https://ui-avatars.com/api/?name=Admin&background=0f172a&color=fff'
+              });
+            } else {
+              reject(new Error('Invalid password for admin account.'));
+            }
+            return;
+          }
+
+          // Simulate specific errors for testing purposes
+          if (credentials.email === 'error@test.com') {
+            reject(new Error('Invalid email or password. Please try again.'));
+            return;
+          }
+          if (credentials.email === 'network@test.com') {
+             reject(new Error('Network connection failed. Please check your internet.'));
+             return;
+          }
+          
+          // Regular User Login
           resolve({
             id: 'u-123',
             name: 'Demo User',
             email: credentials.email,
-            isAdmin: credentials.email.includes('admin'),
+            isAdmin: false,
             avatar: `https://ui-avatars.com/api/?name=User&background=2563eb&color=fff`
           });
         }, 1000);
@@ -84,15 +156,21 @@ export const api = {
       body: JSON.stringify(credentials)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data);
+    if (!res.ok) throw new Error(data || "Login failed");
     localStorage.setItem('user', JSON.stringify(data));
     return data;
   },
 
   register: async (userData: any): Promise<User> => {
     if (USE_MOCK_DATA) {
-       return new Promise((resolve) => {
+       return new Promise((resolve, reject) => {
         setTimeout(() => {
+          // Simulate specific error for existing user
+          if (userData.email === 'exist@test.com') {
+            reject(new Error('This email address is already registered.'));
+            return;
+          }
+
           resolve({
             id: 'u-' + Date.now(),
             name: userData.name,
@@ -108,6 +186,8 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData)
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data || "Registration failed");
+    return data;
   }
 };

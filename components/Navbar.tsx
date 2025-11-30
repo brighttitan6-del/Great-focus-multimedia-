@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { ViewState, User } from '../types';
-import { Menu, X, Camera, LogOut, Settings } from 'lucide-react';
+import { Menu, X, Camera, LogOut, Settings, Facebook, Youtube, Video } from 'lucide-react';
+import { COMPANY_INFO } from '../constants';
 
 interface NavbarProps {
   currentView: ViewState;
@@ -68,9 +70,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, user, o
               </button>
             ))}
 
+            {/* Social Icons */}
+            <div className="flex items-center space-x-3 px-3 border-l border-white/10 ml-2">
+              <a href={COMPANY_INFO.socials.facebook} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-500 transition-colors">
+                <Facebook className="h-4 w-4" />
+              </a>
+              <a href={COMPANY_INFO.socials.youtube} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-red-500 transition-colors">
+                <Youtube className="h-4 w-4" />
+              </a>
+              <a href={`https://${COMPANY_INFO.socials.tiktok}`} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors">
+                <Video className="h-4 w-4" />
+              </a>
+            </div>
+
             {/* Auth Button */}
             {user ? (
-              <div className="relative ml-4">
+              <div className="relative ml-2">
                 <button 
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-colors border border-white/10"
@@ -115,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, user, o
             ) : (
               <button 
                 onClick={() => handleNavClick(ViewState.LOGIN)}
-                className="ml-4 px-4 py-2 bg-brand-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/20"
+                className="ml-2 px-4 py-2 bg-brand-primary text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/20"
               >
                 Sign In
               </button>
@@ -159,10 +174,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, user, o
                 {item.label}
               </button>
             ))}
+            
+            {/* Mobile Socials */}
+            <div className="flex items-center space-x-6 px-3 py-3 border-t border-white/5 mt-2">
+              <a href={COMPANY_INFO.socials.facebook} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-500 transition-colors">
+                <Facebook className="h-5 w-5" />
+              </a>
+              <a href={COMPANY_INFO.socials.youtube} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-red-500 transition-colors">
+                <Youtube className="h-5 w-5" />
+              </a>
+              <a href={`https://${COMPANY_INFO.socials.tiktok}`} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors">
+                <Video className="h-5 w-5" />
+              </a>
+            </div>
+
             {!user ? (
                <button
                 onClick={() => handleNavClick(ViewState.LOGIN)}
-                className="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-white bg-brand-primary"
+                className="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-white bg-brand-primary mt-2"
               >
                 Sign In / Sign Up
               </button>

@@ -1,4 +1,5 @@
 
+
 import { ServiceCategory, ServiceItem, PortfolioItem, Booking, Testimonial } from './types';
 
 export const COMPANY_INFO = {
@@ -24,6 +25,7 @@ export const SERVICES: ServiceItem[] = [
     category: ServiceCategory.VIDEO_PRODUCTION,
     iconName: 'video',
     imageUrl: 'https://picsum.photos/800/600?random=1',
+    videoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ',
     packages: [
       { name: 'Silver Package', price: 'MK 150,000', time: '1 Week' },
       { name: 'Gold Package', price: 'MK 250,000', time: '2 Weeks' },
@@ -51,6 +53,7 @@ export const SERVICES: ServiceItem[] = [
     category: ServiceCategory.MOTION_GRAPHICS,
     iconName: 'activity',
     imageUrl: 'https://picsum.photos/800/600?random=3',
+    videoUrl: 'https://www.youtube.com/watch?v=ysz5S6P_280',
     packages: [
       { name: '15s Social Teaser', price: 'MK 85,000', time: '4 Days' },
       { name: '30s Full Ad', price: 'MK 150,000', time: '1 Week' }
@@ -90,9 +93,51 @@ export const SERVICES: ServiceItem[] = [
     category: ServiceCategory.VIDEO_PRODUCTION,
     iconName: 'music',
     imageUrl: 'https://picsum.photos/800/600?random=6',
+    videoUrl: 'https://www.youtube.com/watch?v=ysz5S6P_280',
     packages: [
       { name: 'Performance Video', price: 'MK 200,000', time: '2 Weeks' },
       { name: 'Concept Video (Scripted)', price: 'MK 350,000', time: '3 Weeks' }
+    ]
+  },
+  {
+    id: 's7',
+    title: 'Professional Web Development',
+    description: 'Custom, responsive websites and web applications built to scale your business online.',
+    priceStart: 'MK 300,000',
+    category: ServiceCategory.WEB_DEVELOPMENT,
+    iconName: 'globe',
+    imageUrl: 'https://picsum.photos/800/600?random=7',
+    packages: [
+      { name: 'Landing Page', price: 'MK 300,000', time: '2 Weeks' },
+      { name: 'Corporate Site (5 Pages)', price: 'MK 600,000', time: '4 Weeks' },
+      { name: 'E-Commerce Store', price: 'MK 1,200,000', time: '6 Weeks' }
+    ]
+  },
+  {
+    id: 's8',
+    title: 'UI/UX App Design',
+    description: 'User-friendly mobile app interfaces and interactive prototypes for iOS and Android.',
+    priceStart: 'MK 250,000',
+    category: ServiceCategory.WEB_DEVELOPMENT,
+    iconName: 'smartphone',
+    imageUrl: 'https://picsum.photos/800/600?random=8',
+    packages: [
+      { name: 'UI Prototype', price: 'MK 250,000', time: '2 Weeks' },
+      { name: 'Full App Design', price: 'MK 550,000', time: '4 Weeks' }
+    ]
+  },
+  {
+    id: 's9',
+    title: 'Creative Skills Academy',
+    description: 'Master photography, video editing, and graphic design with our expert-led online courses.',
+    priceStart: 'MK 45,000',
+    category: ServiceCategory.EDUCATION,
+    iconName: 'graduation-cap',
+    imageUrl: 'https://picsum.photos/800/600?random=9',
+    packages: [
+      { name: 'Basics Crash Course', price: 'MK 45,000', time: '2 Weeks' },
+      { name: 'Professional Masterclass', price: 'MK 120,000', time: '6 Weeks' },
+      { name: '1-on-1 Mentorship', price: 'MK 200,000', time: 'Monthly' }
     ]
   }
 ];

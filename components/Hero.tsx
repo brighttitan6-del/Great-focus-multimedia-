@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { ArrowRight, Play } from 'lucide-react';
+import { ArrowRight, Play, Phone } from 'lucide-react';
 
 interface HeroProps {
   onNavigate: (view: ViewState) => void;
@@ -31,10 +31,10 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
             </span>
           </h1>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto md:mx-0 font-light">
-            Wedding films, corporate ads, motion graphics, and graphic design crafted by Malawi's premier creative studio.
+            Wedding films, corporate ads, motion graphics, and graphic design crafted by a premier creative studio serving clients worldwide.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start flex-wrap">
             <button 
               onClick={() => onNavigate(ViewState.BOOKING)}
               className="px-8 py-4 bg-brand-primary hover:bg-blue-600 text-white rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/25 flex items-center justify-center gap-2"
@@ -42,6 +42,13 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
               Book a Consultation
               <ArrowRight className="h-5 w-5" />
             </button>
+            <a 
+              href="tel:+265883526602"
+              className="px-8 py-4 bg-brand-accent hover:bg-amber-600 text-white rounded-lg font-bold transition-all shadow-lg hover:shadow-amber-500/25 flex items-center justify-center gap-2"
+            >
+              Call +265 883 526 602
+              <Phone className="h-5 w-5" />
+            </a>
             <button 
               onClick={() => onNavigate(ViewState.PORTFOLIO)}
               className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg font-bold transition-all backdrop-blur-sm flex items-center justify-center gap-2"
