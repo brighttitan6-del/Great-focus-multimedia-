@@ -1,6 +1,9 @@
+
+
 import React from 'react';
 import { Camera, UserPlus, LogIn } from 'lucide-react';
 import { ViewState } from '../types';
+import { COMPANY_INFO } from '../constants';
 
 interface WelcomeScreenProps {
   onNavigate: (view: ViewState) => void;
@@ -26,7 +29,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNavigate }) => {
         {/* Logo Animation */}
         <div className="mb-8 relative group cursor-default">
           <div className="absolute -inset-1 bg-gradient-to-r from-brand-primary to-blue-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-          <div className="relative bg-gray-900 ring-1 ring-white/10 p-6 rounded-2xl shadow-2xl">
+          <div className="relative bg-gray-900 ring-1 ring-white/10 p-6 rounded-2xl shadow-2xl overflow-hidden">
             <Camera className="w-16 h-16 text-brand-primary" />
           </div>
         </div>

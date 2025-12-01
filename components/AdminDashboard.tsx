@@ -1,15 +1,14 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { 
   DollarSign, Calendar, Users, TrendingUp, LayoutGrid, Video, 
   Briefcase, CreditCard, Settings, Plus, Upload, UploadCloud,
   Trash2, Edit, FileText, Download, MoreHorizontal, Search, Bell,
   Save, X, Package, Layers, Clock, User as UserIcon, LogOut, CheckCircle, XCircle, MessageSquare, AlertCircle, Lock, Loader2, Eye, EyeOff, CheckSquare, Square,
-  Menu, Smartphone, ExternalLink, Send, MessageCircle
+  Menu, Smartphone, ExternalLink, Send, MessageCircle, Activity
 } from 'lucide-react';
 import { ServiceUploadForm } from './ServiceUploadForm';
-import { User, ServiceItem, Booking } from '../types';
+import { User, ServiceItem, Booking, Project } from '../types';
 import { api } from '../services/api';
 
 interface AdminDashboardProps {
@@ -43,14 +42,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
 
   // Data State
   const [bookings, setBookings] = useState<Booking[]>([]);
-  
-  // Projects State with Persona/Category Details
-  const [projects, setProjects] = useState([
-    { id: 'p1', client: "TechMalawi", category: "Advertising", phone: "265999123456", email: "info@techmalawi.com", title: "Product Launch Ad", dueDate: "Nov 25, 2023", progress: 75, status: "In Progress" },
-    { id: 'p2', client: "Chikondi Phiri", category: "Wedding", phone: "265888123456", email: "chikondi@gmail.com", title: "Wedding Highlights", dueDate: "Dec 01, 2023", progress: 40, status: "Editing" },
-    { id: 'p3', client: "Green Energy", category: "Corporate", phone: "265991234567", email: "ops@greenenergy.mw", title: "Corporate Documentary", dueDate: "Nov 30, 2023", progress: 90, status: "Client Review" },
-    { id: 'p4', client: "AutoFix", category: "Graphic Design", phone: "265881234567", email: "manager@autofix.mw", title: "Rebranding Assets", dueDate: "Dec 05, 2023", progress: 10, status: "Planning" },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeBookingAction, setActiveBookingAction] = useState<string | null>(null);
 
   // Deliverables State
@@ -58,6 +50,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
   const [deliverableFiles, setDeliverableFiles] = useState<File[]>([]);
   const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
   const deliverableInputRef = useRef<HTMLInputElement>(null);
+  const [isSendingFiles, setIsSendingFiles] = useState(false);
 
   // Finance & Withdrawal State
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -74,27 +67,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
 
   // Chart Data
   const revenueData = [
-    { name: 'Jan', amount: 120000 }, { name: 'Feb', amount: 180000 },
-    { name: 'Mar', amount: 150000 }, { name: 'Apr', amount: 250000 },
-    { name: 'May', amount: 210000 }, { name: 'Jun', amount: 300000 },
+    { name: '2019', amount: 120000 }, { name: '2020', amount: 180000 },
+    { name: '2021', amount: 150000 }, { name: '2021', amount: 250000 },
+    { name: '2022', amount: 210000 }, { name: '2023', amount: 300000 },
+    { name: '2023', amount: 380000 },
   ];
+  
   const serviceData = [
-    { name: 'Wedding', value: 400 }, { name: 'Corporate', value: 300 },
-    { name: 'Ads', value: 300 }, { name: 'Graphics', value: 200 },
+    { name: 'Wedding', value: 400 }, 
+    { name: 'Corporate', value: 300 },
+    { name: 'Ads', value: 300 }, 
+    { name: 'Graphics', value: 200 },
   ];
-  const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#6366f1'];
+  
+  // Balanced Tech/Neon Color Palette
+  const TECH_COLORS = ['#06b6d4', '#3b82f6', '#6366f1', '#10b981']; // Cyan, Blue, Indigo, Emerald
 
   // --- INITIAL DATA LOAD ---
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
-        const [fetchedServices, fetchedBookings] = await Promise.all([
+        const [fetchedServices, fetchedBookings, fetchedProjects] = await Promise.all([
           api.getServices(),
-          api.getBookings()
+          api.getBookings(),
+          api.getProjects()
         ]);
         setServices(fetchedServices);
         setBookings(fetchedBookings);
+        setProjects(fetchedProjects);
       } catch (error) {
         console.error("Failed to load dashboard data", error);
       } finally {
@@ -306,27 +307,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
     }
   };
 
-  const handleConfirmDelivery = () => {
+  const handleConfirmDelivery = async () => {
     if (!deliveringProjectId) return;
+    setIsSendingFiles(true);
     
     const project = projects.find(p => p.id === deliveringProjectId);
+    if (!project) return;
 
-    // Simulate upload and update
-    setProjects(prev => prev.map(p => 
-      p.id === deliveringProjectId 
-        ? { ...p, status: 'Completed', progress: 100 } 
-        : p
-    ));
-    
-    if (notifyWhatsApp && project) {
-      // Simulate opening WhatsApp web to notify client
-      const message = `Hello ${project.client}, your ${project.title} (${project.category}) files are ready for download!`;
-      window.open(`https://wa.me/${project.phone}?text=${encodeURIComponent(message)}`, '_blank');
+    // Simulate file upload and URL generation
+    // In a real app, you would upload to S3/Cloudinary here
+    const newDeliverables = deliverableFiles.map(file => ({
+      name: file.name,
+      url: URL.createObjectURL(file), // Mock URL for local demo
+      type: file.type.startsWith('video') ? 'video' : file.type.startsWith('image') ? 'image' : 'file'
+    })) as any;
+
+    const existingDeliverables = project.deliverables || [];
+    const updatedDeliverables = [...existingDeliverables, ...newDeliverables];
+
+    try {
+       await api.updateProject(deliveringProjectId, {
+          status: 'Completed',
+          progress: 100,
+          deliverables: updatedDeliverables
+       });
+
+       // Update local state
+       setProjects(prev => prev.map(p => 
+          p.id === deliveringProjectId 
+          ? { ...p, status: 'Completed', progress: 100, deliverables: updatedDeliverables } 
+          : p
+       ));
+
+       if (notifyWhatsApp && project) {
+          const message = `Hello ${project.client}, your ${project.title} (${project.category}) files are ready for download! Check your dashboard.`;
+          window.open(`https://wa.me/${project.phone}?text=${encodeURIComponent(message)}`, '_blank');
+       }
+    } catch (e) {
+       console.error("Failed to update project", e);
+    } finally {
+       setIsSendingFiles(false);
+       setDeliveringProjectId(null);
+       setDeliverableFiles([]);
     }
-
-    // Close modal
-    setDeliveringProjectId(null);
-    setDeliverableFiles([]);
   };
 
   const handleWithdrawFunds = () => {
@@ -406,57 +429,173 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
           <div className="space-y-6 animate-fade-in">
              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {[
-                { label: 'Revenue', value: 'MK 850k', icon: DollarSign, color: 'text-green-400' },
-                { label: 'Bookings', value: bookings.length.toString(), icon: Calendar, color: 'text-blue-400' },
-                { label: 'Pending', value: bookings.filter(b => b.status === 'Pending').length.toString(), icon: Briefcase, color: 'text-purple-400' },
-                { label: 'Growth', value: '+18%', icon: TrendingUp, color: 'text-orange-400' },
+                { label: 'Revenue', value: 'MK 850k', icon: DollarSign, color: 'text-cyan-400', borderColor: 'border-cyan-500/30' },
+                { label: 'Bookings', value: bookings.length.toString(), icon: Calendar, color: 'text-blue-400', borderColor: 'border-blue-500/30' },
+                { label: 'Pending', value: bookings.filter(b => b.status === 'Pending').length.toString(), icon: Briefcase, color: 'text-indigo-400', borderColor: 'border-indigo-500/30' },
+                { label: 'Growth', value: '+18%', icon: TrendingUp, color: 'text-emerald-400', borderColor: 'border-emerald-500/30' },
               ].map((stat, i) => (
-                <div key={i} className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
-                  <div className="flex justify-between items-start">
+                <div key={i} className={`bg-[#0f172a] p-6 rounded-2xl border ${stat.borderColor} shadow-[0_0_15px_rgba(0,0,0,0.3)] relative overflow-hidden group`}>
+                   {/* Tech corners */}
+                   <div className="absolute top-0 right-0 p-2 opacity-20">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                   </div>
+                   
+                   <div className="flex justify-between items-start relative z-10">
                     <div>
-                      <p className="text-gray-400 text-sm font-medium">{stat.label}</p>
-                      <h3 className="text-3xl font-bold text-white mt-1">{stat.value}</h3>
+                      <p className="text-gray-400 text-[10px] uppercase tracking-widest font-bold mb-2">{stat.label}</p>
+                      <h3 className="text-3xl font-mono font-bold text-white mt-1 tracking-tighter">{stat.value}</h3>
                     </div>
-                    <div className="p-3 rounded-lg bg-gray-900 border border-gray-700">
+                    <div className={`p-3 rounded-xl bg-gray-900/80 border ${stat.borderColor} shadow-[0_0_10px_rgba(0,0,0,0.2)] backdrop-blur-sm group-hover:scale-110 transition-transform duration-500`}>
                       <stat.icon className={`h-6 w-6 ${stat.color}`} />
                     </div>
                   </div>
+                  {/* Bottom line glow */}
+                  <div className={`absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-transparent via-${stat.color.replace('text-', '')} to-transparent opacity-20`}></div>
                 </div>
               ))}
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-               <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg h-80">
-                  <h3 className="text-white font-bold mb-4">Revenue Trend</h3>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 30 }}>
-                       <defs>
-                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                             <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
-                             <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                          </linearGradient>
-                       </defs>
-                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                       <XAxis dataKey="name" stroke="#9ca3af" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                       <YAxis stroke="#9ca3af" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                       <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                       <Area type="monotone" dataKey="amount" stroke="#2563eb" fill="url(#colorRevenue)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+               {/* Revenue Line Chart - Styled like Stock Performance */}
+               <div className="bg-[#0f172a] p-6 rounded-2xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.05)] h-96 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-cyan-500/50 rounded-tl-lg"></div>
+                  <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-cyan-500/50 rounded-tr-lg"></div>
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none"></div>
+
+                  <h3 className="text-cyan-500 text-xs font-bold uppercase tracking-[0.2em] mb-6 flex items-center gap-2 relative z-10">
+                    <Activity className="w-4 h-4" />
+                    Revenue Performance
+                  </h3>
+                  
+                  <div className="relative z-10 w-full h-[85%]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={revenueData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                         <defs>
+                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                              <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+                              <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                               <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                               <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                            </linearGradient>
+                         </defs>
+                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                         <XAxis 
+                            dataKey="name" 
+                            stroke="#64748b" 
+                            tick={{fontSize: 10, fontFamily: 'monospace', fill: '#94a3b8'}} 
+                            axisLine={false} 
+                            tickLine={false} 
+                            dy={10}
+                         />
+                         <YAxis 
+                            stroke="#64748b" 
+                            tick={{fontSize: 10, fontFamily: 'monospace', fill: '#94a3b8'}} 
+                            axisLine={false} 
+                            tickLine={false} 
+                            dx={-10}
+                         />
+                         <Tooltip 
+                            contentStyle={{ 
+                               backgroundColor: '#0f172a', 
+                               borderColor: 'rgba(6,182,212,0.5)', 
+                               color: '#fff',
+                               borderRadius: '8px',
+                               boxShadow: '0 0 15px rgba(6,182,212,0.2)'
+                            }} 
+                            itemStyle={{ color: '#06b6d4', fontFamily: 'monospace' }}
+                            labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem', fontSize: '10px', textTransform: 'uppercase' }}
+                         />
+                         <Line 
+                            type="monotone" 
+                            dataKey="amount" 
+                            stroke="#06b6d4" 
+                            strokeWidth={3}
+                            dot={{ fill: '#0f172a', stroke: '#06b6d4', strokeWidth: 2, r: 4 }}
+                            activeDot={{ r: 6, fill: '#fff', stroke: '#06b6d4', strokeWidth: 3 }}
+                            filter="url(#glow)"
+                         />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                </div>
-               <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg h-80">
-                  <h3 className="text-white font-bold mb-4">Service Popularity</h3>
-                  <ResponsiveContainer width="100%" height="100%">
-                     <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 20 }}>
-                        <Pie 
-                           data={serviceData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} 
-                           paddingAngle={5} dataKey="value" stroke="none"
-                        >
-                           {serviceData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                     </PieChart>
-                  </ResponsiveContainer>
+
+               {/* Service Popularity - Styled like Market Share (Donut) */}
+               <div className="bg-[#0f172a] p-6 rounded-2xl border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.05)] h-96 relative overflow-hidden">
+                   <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-blue-500/50 rounded-bl-lg"></div>
+                   <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-blue-500/50 rounded-br-lg"></div>
+                   <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
+
+                  <h3 className="text-blue-500 text-xs font-bold uppercase tracking-[0.2em] mb-6 flex items-center gap-2 relative z-10">
+                     <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+                     Service Popularity (2023)
+                  </h3>
+                  
+                  <div className="relative z-10 flex flex-col md:flex-row items-center h-[85%]">
+                     {/* Chart Area */}
+                     <div className="flex-1 w-full h-full relative">
+                        {/* Hollow Center Text */}
+                        <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                            <span className="text-4xl font-mono font-bold text-white tracking-tighter">1.2K</span>
+                            <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Total Bookings</span>
+                        </div>
+                        <ResponsiveContainer width="100%" height="100%">
+                           <PieChart>
+                              <Pie 
+                                 data={serviceData} 
+                                 cx="50%" 
+                                 cy="50%" 
+                                 innerRadius={70} 
+                                 outerRadius={90} 
+                                 paddingAngle={4} 
+                                 dataKey="value" 
+                                 stroke="none"
+                              >
+                                 {serviceData.map((_, index) => (
+                                    <Cell 
+                                       key={`cell-${index}`} 
+                                       fill={TECH_COLORS[index % TECH_COLORS.length]} 
+                                       className="hover:opacity-80 transition-opacity duration-300"
+                                    />
+                                 ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                   backgroundColor: '#0f172a', 
+                                   borderColor: 'rgba(59,130,246,0.5)', 
+                                   color: '#fff', 
+                                   borderRadius: '8px',
+                                   boxShadow: '0 0 15px rgba(59,130,246,0.2)'
+                                }} 
+                                itemStyle={{ color: '#fff', fontFamily: 'monospace' }}
+                              />
+                           </PieChart>
+                        </ResponsiveContainer>
+                     </div>
+
+                     {/* Custom Legend */}
+                     <div className="w-full md:w-1/3 flex flex-col justify-center gap-4 pl-4 border-l border-white/5">
+                        {serviceData.map((entry, index) => (
+                           <div key={index} className="flex items-center justify-between group cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                 <div 
+                                    className="w-2 h-2 rounded-full" 
+                                    style={{ 
+                                       backgroundColor: TECH_COLORS[index % TECH_COLORS.length],
+                                       boxShadow: `0 0 8px ${TECH_COLORS[index % TECH_COLORS.length]}`
+                                    }}
+                                 ></div>
+                                 <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest group-hover:text-white transition-colors">{entry.name}</span>
+                              </div>
+                              <span className="text-white text-xs font-mono font-bold">{(entry.value / 12).toFixed(1)}%</span>
+                           </div>
+                        ))}
+                     </div>
+                  </div>
                </div>
             </div>
           </div>
@@ -698,11 +837,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
                            <MessageSquare className="h-4 w-4" /> Internal Notes
                         </button>
                         
-                        {p.status !== 'Completed' && (
-                           <button onClick={() => handleDeliverProjectClick(p.id)} className="col-span-2 md:col-span-2 bg-brand-primary hover:bg-blue-600 text-white py-2 rounded text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
-                              <Upload className="h-4 w-4" /> Deliver to {p.client}
-                           </button>
-                        )}
+                        {/* Only show deliver button if status isn't Completed OR if needed to update files */}
+                        <button onClick={() => handleDeliverProjectClick(p.id)} className="col-span-2 md:col-span-2 bg-brand-primary hover:bg-blue-600 text-white py-2 rounded text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+                           <Upload className="h-4 w-4" /> {p.status === 'Completed' ? 'Update Files' : `Deliver to ${p.client}`}
+                        </button>
                      </div>
                   </div>
                ))}
@@ -788,10 +926,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
                              <button onClick={() => { setDeliveringProjectId(null); setDeliverableFiles([]); }} className="flex-1 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 font-medium">Cancel</button>
                              <button 
                                onClick={handleConfirmDelivery}
-                               disabled={deliverableFiles.length === 0}
+                               disabled={deliverableFiles.length === 0 || isSendingFiles}
                                className="flex-1 py-3 rounded-lg bg-brand-primary hover:bg-blue-600 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
                              >
-                                <Send className="h-4 w-4" /> Send Files
+                                {isSendingFiles ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send Files
                              </button>
                           </div>
                        </div>
@@ -822,14 +960,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
          );
 
       case 'finance':
-         // Calculate Finance Stats
+         // ... (Finance content preserved)
          const totalRevenue = MOCK_INVOICES.filter(i => i.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0);
          const pendingRevenue = MOCK_INVOICES.filter(i => i.status === 'Pending').reduce((acc, curr) => acc + curr.amount, 0);
          const overdueRevenue = MOCK_INVOICES.filter(i => i.status === 'Overdue').reduce((acc, curr) => acc + curr.amount, 0);
 
          return (
             <div className="space-y-6">
-               {/* New Stats Section */}
+               {/* Stats Section */}
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
                   <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg flex items-center justify-between relative overflow-hidden">
                      <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/10 rounded-bl-full -mr-4 -mt-4 transition-all hover:bg-green-500/20"></div>
@@ -961,6 +1099,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
          );
 
       case 'messages':
+         // ... (Messages content preserved)
          return (
             <div className="space-y-6 animate-fade-in">
                <div className="bg-gradient-to-r from-green-900/20 to-gray-800 p-6 rounded-xl border border-green-500/20 shadow-lg flex justify-between items-center">
@@ -1056,7 +1195,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
                     </div>
                     <div className="overflow-hidden">
                        <p className="text-white text-xs font-bold truncate">{user?.name}</p>
-                       <p className="text-gray-500 text-[10px] truncate">{user?.email}</p>
+                       <p className="text-gray-500 text-xs truncate">{user?.email}</p>
                     </div>
                  </div>
                  {showUserMenu && (

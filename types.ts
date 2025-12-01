@@ -48,6 +48,25 @@ export interface Booking {
   amount: number;
 }
 
+export interface Project {
+  id: string;
+  client: string;
+  clientId?: string; // To link to logged-in user
+  clientEmail?: string;
+  category: string;
+  phone: string;
+  email: string;
+  title: string;
+  dueDate: string;
+  progress: number;
+  status: string;
+  deliverables?: {
+    name: string;
+    url: string;
+    type: 'video' | 'image' | 'file';
+  }[];
+}
+
 export interface PortfolioItem {
   id: string;
   title: string;

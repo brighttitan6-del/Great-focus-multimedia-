@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { ViewState, User } from '../types';
 import { Menu, X, Camera, LogOut, Settings, Facebook, Youtube, Video } from 'lucide-react';
@@ -116,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, user, o
                        onClick={() => handleNavClick(ViewState.BOOKING)}
                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white"
                      >
-                       My Bookings
+                       My Dashboard
                      </button>
                      <button 
                        onClick={handleLogoutClick}

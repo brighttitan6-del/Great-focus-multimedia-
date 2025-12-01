@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+
+
+import React, { useState, useEffect } from 'react';
 import { SERVICES } from '../constants';
-import { ServiceItem } from '../types';
-import { Check, Calendar, Clock, CreditCard, UploadCloud, CheckCircle, Home, Download, AlertCircle } from 'lucide-react';
+import { ServiceItem, Project, User } from '../types';
+import { api } from '../services/api';
+import { Check, Calendar, Clock, CreditCard, UploadCloud, CheckCircle, Home, Download, AlertCircle, Plus, FileText, Video, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 interface BookingFlowProps {
   preSelectedServiceId?: string;
@@ -10,6 +13,12 @@ interface BookingFlowProps {
 }
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, onSuccess, onCancel }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [viewMode, setViewMode] = useState<'LIST' | 'CREATE'>('LIST');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+
+  // Booking Form State
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<ServiceItem | undefined>(
     SERVICES.find(s => s.id === preSelectedServiceId)
@@ -26,6 +35,41 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    // Get current user
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const u = JSON.parse(storedUser);
+      setUser(u);
+      setFormData(prev => ({ ...prev, name: u.name, email: u.email }));
+    }
+
+    // Determine initial mode
+    if (preSelectedServiceId) {
+       setViewMode('CREATE');
+       setSelectedService(SERVICES.find(s => s.id === preSelectedServiceId));
+       setStep(2);
+    } else if (storedUser) {
+       // Load user projects
+       loadProjects(JSON.parse(storedUser).email);
+    } else {
+       // Guest trying to book
+       setViewMode('CREATE');
+    }
+  }, [preSelectedServiceId]);
+
+  const loadProjects = async (email: string) => {
+    setLoadingProjects(true);
+    try {
+      const data = await api.getProjects(email);
+      setProjects(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
   const handleServiceSelect = (id: string) => {
     setSelectedService(SERVICES.find(s => s.id === id));
     setStep(2);
@@ -33,7 +77,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Clear error when user types
     if (errors[e.target.name]) {
       setErrors({ ...errors, [e.target.name]: '' });
     }
@@ -43,10 +86,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
     const newErrors: Record<string, string> = {};
     const now = new Date();
 
-    // Name Validation
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
-
-    // Email Validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
@@ -54,8 +94,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
       newErrors.email = 'Please enter a valid email address';
     }
 
-    // Phone Validation (International)
-    // Clean spaces, dashes, parentheses
     const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
     const phoneRegex = /^\+?[0-9]{7,15}$/;
     
@@ -65,7 +103,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
       newErrors.phone = 'Enter a valid phone number (e.g. +1 234...)';
     }
 
-    // Date & Time Validation
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.time) newErrors.time = 'Time is required';
 
@@ -76,7 +113,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
         newErrors.time = ' ';
       }
     } else if (formData.date) {
-        // If only date provided so far, check if date is in past (simple check)
         const selectedDate = new Date(formData.date);
         const today = new Date();
         today.setHours(0,0,0,0);
@@ -102,6 +138,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
     setTimeout(() => {
       setIsProcessing(false);
       setStep(4); // Go to confirmation screen
+      if (user) loadProjects(user.email); // Refresh projects if logged in
     }, 2000);
   };
 
@@ -118,9 +155,117 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
       : 'border-white/10 focus:border-brand-primary focus:ring-brand-primary'}
   `;
 
+  // --- RENDER LIST VIEW ---
+  if (viewMode === 'LIST' && user) {
+     return (
+        <div className="py-12 bg-brand-dark min-h-screen">
+           <div className="max-w-5xl mx-auto px-4">
+              <div className="flex justify-between items-center mb-8">
+                 <div>
+                    <h2 className="text-3xl font-bold text-white">Client Dashboard</h2>
+                    <p className="text-gray-400 mt-1">Manage your projects and download files.</p>
+                 </div>
+                 <button 
+                    onClick={() => setViewMode('CREATE')}
+                    className="bg-brand-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"
+                 >
+                    <Plus className="h-5 w-5" /> New Booking
+                 </button>
+              </div>
+
+              {loadingProjects ? (
+                 <div className="flex justify-center py-20"><Loader2 className="h-10 w-10 text-brand-primary animate-spin" /></div>
+              ) : projects.length === 0 ? (
+                 <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
+                    <Calendar className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-white mb-2">No Active Projects</h3>
+                    <p className="text-gray-400 mb-6">You haven't booked any services yet.</p>
+                    <button onClick={() => setViewMode('CREATE')} className="text-brand-primary hover:text-white font-medium">Start a new project</button>
+                 </div>
+              ) : (
+                 <div className="grid grid-cols-1 gap-6">
+                    {projects.map(project => (
+                       <div key={project.id} className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-lg">
+                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                             <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                   <h3 className="text-xl font-bold text-white">{project.title}</h3>
+                                   <span className="bg-brand-primary/20 text-brand-primary border border-brand-primary/30 text-xs px-2 py-0.5 rounded-full uppercase font-bold">{project.category}</span>
+                                </div>
+                                <p className="text-gray-400 text-sm">Due: {project.dueDate}</p>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                   project.status === 'Completed' ? 'bg-green-500/20 text-green-400' : 
+                                   project.status === 'In Progress' ? 'bg-blue-500/20 text-blue-400' :
+                                   'bg-gray-700 text-gray-300'
+                                }`}>
+                                   {project.status}
+                                </span>
+                             </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="w-full bg-gray-900 h-2 rounded-full mb-6 overflow-hidden">
+                             <div 
+                                className={`h-full rounded-full transition-all duration-1000 ${project.status === 'Completed' ? 'bg-green-500' : 'bg-brand-primary'}`} 
+                                style={{ width: `${project.progress}%` }}
+                             ></div>
+                          </div>
+
+                          {/* Deliverables Section */}
+                          {project.deliverables && project.deliverables.length > 0 && (
+                             <div className="bg-black/20 rounded-lg p-4 border border-white/5">
+                                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                                   <UploadCloud className="h-4 w-4 text-brand-accent" /> Project Deliverables
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                   {project.deliverables.map((file, idx) => (
+                                      <div key={idx} className="flex items-center justify-between bg-gray-700/50 p-3 rounded hover:bg-gray-700 transition-colors">
+                                         <div className="flex items-center gap-3 overflow-hidden">
+                                            {file.type === 'video' ? <Video className="h-5 w-5 text-blue-400 flex-shrink-0" /> : 
+                                             file.type === 'image' ? <ImageIcon className="h-5 w-5 text-purple-400 flex-shrink-0" /> :
+                                             <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />}
+                                            <span className="text-gray-200 text-sm truncate">{file.name}</span>
+                                         </div>
+                                         <a 
+                                            href={file.url} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className="text-brand-primary hover:text-white p-1 rounded hover:bg-white/10"
+                                            title="Download/View"
+                                         >
+                                            <Download className="h-4 w-4" />
+                                         </a>
+                                      </div>
+                                   ))}
+                                </div>
+                             </div>
+                          )}
+                          
+                          {/* Empty State for deliverables if completed but no files */}
+                          {project.status === 'Completed' && (!project.deliverables || project.deliverables.length === 0) && (
+                             <p className="text-sm text-gray-500 italic">Files are being prepared for upload...</p>
+                          )}
+                       </div>
+                    ))}
+                 </div>
+              )}
+           </div>
+        </div>
+     );
+  }
+
+  // --- RENDER CREATE MODE (Wizard) ---
   return (
     <div className="py-12 bg-brand-dark min-h-screen">
       <div className="max-w-3xl mx-auto px-4">
+        {user && (
+           <button onClick={() => setViewMode('LIST')} className="mb-6 text-gray-400 hover:text-white flex items-center gap-2 transition-colors">
+              <AlertCircle className="h-4 w-4 rotate-180" /> Back to Dashboard
+           </button>
+        )}
+        
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8">
           
           {/* Progress Indicator */}
@@ -379,8 +524,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <button onClick={onSuccess} className="bg-brand-primary px-8 py-3 rounded-lg text-white font-bold hover:bg-blue-600 transition-colors shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
                      <Home className="w-4 h-4" /> Return to Home
                   </button>
-                  <button className="bg-white/5 px-8 py-3 rounded-lg text-white font-medium hover:bg-white/10 transition-colors border border-white/10 flex items-center justify-center gap-2">
-                     <Download className="w-4 h-4" /> Save Receipt
+                  <button onClick={() => setViewMode('LIST')} className="bg-white/5 px-8 py-3 rounded-lg text-white font-medium hover:bg-white/10 transition-colors border border-white/10 flex items-center justify-center gap-2">
+                     <AlertCircle className="w-4 h-4" /> View Dashboard
                   </button>
                 </div>
              </div>

@@ -1,5 +1,7 @@
-import { ServiceItem, Booking, User } from '../types';
-import { SERVICES, MOCK_BOOKINGS } from '../constants';
+
+
+import { ServiceItem, Booking, User, Project } from '../types';
+import { SERVICES, MOCK_BOOKINGS, MOCK_PROJECTS } from '../constants';
 
 // --- CONFIGURATION ---
 const API_URL = 'http://localhost:5000/api'; 
@@ -10,6 +12,7 @@ const USE_MOCK_DATA = true;
 // --- IN-MEMORY DATA STORE (For Mock Mode Persistence) ---
 let mockServices: ServiceItem[] = [...SERVICES];
 let mockBookings: Booking[] = [...MOCK_BOOKINGS];
+let mockProjects: Project[] = [...MOCK_PROJECTS];
 
 // --- HELPERS ---
 const getHeaders = () => {
@@ -118,6 +121,31 @@ export const api = {
       body: JSON.stringify(updates)
     });
     return res.json();
+  },
+
+  // PROJECTS & DELIVERABLES
+  getProjects: async (userEmail?: string): Promise<Project[]> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        // If userEmail provided, filter projects for that client
+        const projects = userEmail 
+          ? mockProjects.filter(p => p.clientEmail === userEmail || p.email === userEmail)
+          : mockProjects;
+        setTimeout(() => resolve([...projects]), 300);
+      });
+    }
+    // Implement API call for projects if backend is ready
+    return [];
+  },
+
+  updateProject: async (id: string, updates: Partial<Project>): Promise<Project | undefined> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        mockProjects = mockProjects.map(p => p.id === id ? { ...p, ...updates } : p);
+        resolve(mockProjects.find(p => p.id === id));
+      });
+    }
+    return undefined;
   },
 
   // AUTH

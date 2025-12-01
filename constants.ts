@@ -1,6 +1,6 @@
 
 
-import { ServiceCategory, ServiceItem, PortfolioItem, Booking, Testimonial } from './types';
+import { ServiceCategory, ServiceItem, PortfolioItem, Booking, Testimonial, Project } from './types';
 
 export const COMPANY_INFO = {
   name: "Great Focus Multimedia",
@@ -180,6 +180,59 @@ export const MOCK_BOOKINGS: Booking[] = [
   { id: 'b2', clientName: 'Daniel Banda', serviceId: 's3', date: '2023-11-20', status: 'Pending', amount: 85000 },
   { id: 'b3', clientName: 'Sarah Johnson', serviceId: 's2', date: '2023-11-10', status: 'Completed', amount: 40000 },
   { id: 'b4', clientName: 'Green Energy Ltd', serviceId: 's5', date: '2023-12-01', status: 'Confirmed', amount: 60000 },
+];
+
+export const MOCK_PROJECTS: Project[] = [
+  { 
+    id: 'p1', 
+    client: "TechMalawi", 
+    clientId: 'u-123',
+    clientEmail: 'user@gmail.com', 
+    category: "Advertising", 
+    phone: "265999123456", 
+    email: "user@gmail.com", 
+    title: "Product Launch Ad", 
+    dueDate: "Nov 25, 2023", 
+    progress: 75, 
+    status: "In Progress",
+    deliverables: []
+  },
+  { 
+    id: 'p2', 
+    client: "Chikondi Phiri", 
+    clientEmail: 'chikondi@gmail.com',
+    category: "Wedding", 
+    phone: "265888123456", 
+    email: "chikondi@gmail.com", 
+    title: "Wedding Highlights", 
+    dueDate: "Dec 01, 2023", 
+    progress: 40, 
+    status: "Editing" 
+  },
+  { 
+    id: 'p3', 
+    client: "Green Energy", 
+    clientEmail: 'ops@greenenergy.mw',
+    category: "Corporate", 
+    phone: "265991234567", 
+    email: "ops@greenenergy.mw", 
+    title: "Corporate Documentary", 
+    dueDate: "Nov 30, 2023", 
+    progress: 90, 
+    status: "Client Review" 
+  },
+  { 
+    id: 'p4', 
+    client: "AutoFix", 
+    clientEmail: 'manager@autofix.mw',
+    category: "Graphic Design", 
+    phone: "265881234567", 
+    email: "manager@autofix.mw", 
+    title: "Rebranding Assets", 
+    dueDate: "Dec 05, 2023", 
+    progress: 10, 
+    status: "Planning" 
+  },
 ];
 
 export const TESTIMONIALS: Testimonial[] = [
