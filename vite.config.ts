@@ -7,7 +7,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      'process.env': env
+      // Safely define only the API_KEY, preserving other process.env variables like NODE_ENV
+      'process.env.API_KEY': JSON.stringify(env.API_KEY)
     }
   };
 });

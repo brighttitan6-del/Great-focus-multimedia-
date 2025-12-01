@@ -14,18 +14,26 @@ app.use(express.json());
 app.use(cors());
 
 // DB Connection
-mongoose.connect(process.env.MONGO_URL || 'mongodb://localhost:27017/greatfocus', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => console.log("DB Connection Successfull!"))
-  .catch((err) => console.log(err));
+// Check if connection exists to avoid multiple connections in serverless hot-reloads
+if (mongoose.connection.readyState === 0) {
+    mongoose.connect(process.env.MONGO_URL || 'mongodb://localhost:27017/greatfocus', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }).then(() => console.log("DB Connection Successfull!"))
+      .catch((err) => console.log(err));
+}
 
 // Routes
 app.use("/api/auth", authRoute);
 app.use("/api/services", serviceRoute);
 app.use("/api/bookings", bookingRoute);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Backend server is running on port ${PORT}!`);
-});
+// Only listen if not running in a serverless environment (Vercel)
+if (process.env.VITE_VERCEL_ENV !== 'production' && !process.env.VERCEL) {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Backend server is running on port ${PORT}!`);
+    });
+}
+
+export default app;
