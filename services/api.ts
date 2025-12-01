@@ -1,11 +1,12 @@
-
 import { ServiceItem, Booking, User } from '../types';
 import { SERVICES, MOCK_BOOKINGS } from '../constants';
 
 // --- CONFIGURATION ---
-const API_URL = 'http://localhost:5000/api';
+// In production (Netlify), relative path '/api' will be redirected to the function
+const API_URL = '/api'; 
+
 // SET THIS TO FALSE TO USE THE REAL BACKEND
-const USE_MOCK_DATA = true; 
+const USE_MOCK_DATA = false; 
 
 // --- IN-MEMORY DATA STORE (For Mock Mode Persistence) ---
 let mockServices: ServiceItem[] = [...SERVICES];
@@ -62,8 +63,13 @@ export const api = {
         resolve(mockServices.find(s => s.id === id));
       });
     }
-    // Real backend implementation would go here
-    return undefined;
+    const res = await fetch(`${API_URL}/services/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) return undefined;
+    return res.json();
   },
 
   deleteService: async (id: string): Promise<boolean> => {
@@ -73,8 +79,11 @@ export const api = {
         resolve(true);
       });
     }
-    // Real backend implementation would go here
-    return true;
+    const res = await fetch(`${API_URL}/services/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    return res.ok;
   },
 
   // BOOKINGS
@@ -105,7 +114,12 @@ export const api = {
        mockBookings = mockBookings.map(b => b.id === id ? { ...b, ...updates } : b);
        return Promise.resolve(mockBookings.find(b => b.id === id));
     }
-    // Real backend impl
+    const res = await fetch(`${API_URL}/bookings/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(updates)
+    });
+    return res.json();
   },
 
   // AUTH

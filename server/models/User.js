@@ -8,4 +8,5 @@ const userSchema = new mongoose.Schema({
   avatar: { type: String },
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+// Check if model exists before defining to prevent OverwriteModelError in serverless env
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);

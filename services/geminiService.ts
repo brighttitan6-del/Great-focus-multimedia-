@@ -1,11 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateCreativeAdvice = async (userPrompt: string): Promise<string> => {
-  if (!apiKey) return "API Key not configured. Please add your Gemini API Key.";
-
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
