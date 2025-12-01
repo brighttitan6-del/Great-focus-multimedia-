@@ -16,11 +16,14 @@ app.use(cors());
 // DB Connection
 // Check if connection exists to avoid multiple connections in serverless hot-reloads
 if (mongoose.connection.readyState === 0) {
-    mongoose.connect(process.env.MONGO_URL || 'mongodb://localhost:27017/greatfocus', {
+    const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017/greatfocus';
+    console.log("Attempting to connect to MongoDB...");
+    
+    mongoose.connect(mongoUrl, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     }).then(() => console.log("DB Connection Successfull!"))
-      .catch((err) => console.log(err));
+      .catch((err) => console.log("DB Connection Error:", err));
 }
 
 // Routes

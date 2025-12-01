@@ -1,8 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize safely to prevent crash if env var is missing
+const apiKey = process.env.API_KEY;
+let ai: GoogleGenAI | null = null;
+
+if (apiKey) {
+  try {
+    ai = new GoogleGenAI({ apiKey });
+  } catch (error) {
+    console.error("Failed to initialize Gemini Client", error);
+  }
+}
 
 export const generateCreativeAdvice = async (userPrompt: string): Promise<string> => {
+  if (!ai) {
+    console.warn("Gemini API Key is missing or invalid.");
+    return "I'm currently offline (API configuration missing). Please try again later.";
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
