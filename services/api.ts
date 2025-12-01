@@ -133,7 +133,8 @@ export const api = {
                 name: 'Great Focus Admin',
                 email: 'admin@greatfocus00123.com',
                 isAdmin: true,
-                avatar: 'https://ui-avatars.com/api/?name=Admin&background=0f172a&color=fff'
+                avatar: 'https://ui-avatars.com/api/?name=Admin&background=0f172a&color=fff',
+                accessToken: 'mock-admin-token'
               });
             } else {
               reject(new Error('Invalid password for admin account.'));
@@ -157,7 +158,8 @@ export const api = {
             name: 'Demo User',
             email: credentials.email,
             isAdmin: false,
-            avatar: `https://ui-avatars.com/api/?name=User&background=2563eb&color=fff`
+            avatar: `https://ui-avatars.com/api/?name=User&background=2563eb&color=fff`,
+            accessToken: 'mock-user-token'
           });
         }, 1000);
       });
@@ -188,7 +190,8 @@ export const api = {
             name: userData.name,
             email: userData.email,
             isAdmin: false,
-            avatar: `https://ui-avatars.com/api/?name=${userData.name}`
+            avatar: `https://ui-avatars.com/api/?name=${userData.name}`,
+            accessToken: 'mock-new-user-token'
           });
         }, 1000);
       });

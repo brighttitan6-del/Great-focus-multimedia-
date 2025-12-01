@@ -19,8 +19,16 @@ router.post('/register', async (req, res) => {
     });
 
     const user = await newUser.save();
+    
+    // Generate Token immediately upon registration
+    const accessToken = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "3d" }
+    );
+
     const { password, ...others } = user._doc;
-    res.status(200).json(others);
+    res.status(200).json({ ...others, accessToken });
   } catch (err) {
     res.status(500).json(err);
   }
