@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const serviceSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -25,4 +25,5 @@ serviceSchema.set('toJSON', {
   }
 });
 
-module.exports = mongoose.models.Service || mongoose.model('Service', serviceSchema);
+const Service = mongoose.models.Service || mongoose.model('Service', serviceSchema);
+export default Service;

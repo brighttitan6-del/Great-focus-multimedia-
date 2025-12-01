@@ -1,6 +1,8 @@
-const router = require('express').Router();
-const Service = require('../models/Service');
-const { verifyTokenAndAdmin } = require('./verifyToken');
+import express from 'express';
+import Service from '../models/Service.js';
+import { verifyTokenAndAdmin } from './verifyToken.js';
+
+const router = express.Router();
 
 // CREATE
 router.post('/', verifyTokenAndAdmin, async (req, res) => {
@@ -59,4 +61,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

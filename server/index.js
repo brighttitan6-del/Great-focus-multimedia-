@@ -1,10 +1,10 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const authRoute = require('./routes/auth');
-const serviceRoute = require('./routes/services');
-const bookingRoute = require('./routes/bookings');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import authRoute from './routes/auth.js';
+import serviceRoute from './routes/services.js';
+import bookingRoute from './routes/bookings.js';
 
 dotenv.config();
 

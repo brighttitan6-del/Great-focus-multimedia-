@@ -1,13 +1,13 @@
-const express = require('express');
-const serverless = require('serverless-http');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
+import express from 'express';
+import serverless from 'serverless-http';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-// Import Routes
-const authRoute = require('../../server/routes/auth');
-const serviceRoute = require('../../server/routes/services');
-const bookingRoute = require('../../server/routes/bookings');
+// Import Routes with .js extension for ESM
+import authRoute from '../../server/routes/auth.js';
+import serviceRoute from '../../server/routes/services.js';
+import bookingRoute from '../../server/routes/bookings.js';
 
 dotenv.config();
 
@@ -34,8 +34,6 @@ const connectDB = async () => {
 };
 
 // Routes
-// Note: We mount to /.netlify/functions/api in development, but usually we use a rewrite
-// In Express on Netlify, we often mount to a router to handle the path prefix or use the router directly
 const router = express.Router();
 
 router.use('/auth', authRoute);
@@ -45,11 +43,10 @@ router.use('/bookings', bookingRoute);
 // Mount router at /api so it matches the frontend calls
 app.use('/api', router);
 
-// Export the handler
-const handler = serverless(app);
-
-module.exports.handler = async (event, context) => {
+// Export the handler using ESM syntax for Netlify
+const slsHandler = serverless(app);
+export const handler = async (event, context) => {
   // Make sure to wait for database connection before handling request
   await connectDB();
-  return handler(event, context);
+  return slsHandler(event, context);
 };
