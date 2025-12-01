@@ -2,11 +2,10 @@ import { ServiceItem, Booking, User } from '../types';
 import { SERVICES, MOCK_BOOKINGS } from '../constants';
 
 // --- CONFIGURATION ---
-// In production (Netlify), relative path '/api' will be redirected to the function
-const API_URL = '/api'; 
+const API_URL = 'http://localhost:5000/api'; 
 
-// SET THIS TO FALSE TO USE THE REAL BACKEND
-const USE_MOCK_DATA = false; 
+// SET THIS TO TRUE TO USE MOCK DATA
+const USE_MOCK_DATA = true; 
 
 // --- IN-MEMORY DATA STORE (For Mock Mode Persistence) ---
 let mockServices: ServiceItem[] = [...SERVICES];
@@ -44,7 +43,6 @@ export const api = {
         } as ServiceItem;
         
         mockServices = [newService, ...mockServices];
-        console.log('Mock: Service Created', newService);
         resolve(newService);
       });
     }
