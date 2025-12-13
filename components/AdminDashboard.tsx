@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
@@ -1058,17 +1059,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
                  ))}
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 h-80">
+                 <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 h-80 flex flex-col">
                     <h3 className="text-white font-bold mb-4">Revenue Trend</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={monthlyRevenueData}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><XAxis dataKey="month" stroke="#94a3b8" /><YAxis stroke="#94a3b8" tickFormatter={v=>`${v/1000}k`} /><Tooltip contentStyle={{backgroundColor:'#1e293b', borderColor:'#475569'}} /><Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} /></AreaChart>
-                    </ResponsiveContainer>
+                    <div className="flex-1 w-full min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                         <AreaChart data={monthlyRevenueData}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><XAxis dataKey="month" stroke="#94a3b8" /><YAxis stroke="#94a3b8" tickFormatter={v=>`${v/1000}k`} /><Tooltip contentStyle={{backgroundColor:'#1e293b', borderColor:'#475569'}} /><Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} /></AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                  </div>
-                 <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 h-80">
+                 <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 h-80 flex flex-col">
                     <h3 className="text-white font-bold mb-4">Service Popularity</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                       <PieChart><Pie data={servicePopularityData} innerRadius={60} outerRadius={80} dataKey="value" paddingAngle={5}>{servicePopularityData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip contentStyle={{backgroundColor:'#1e293b', borderColor:'#475569'}} /></PieChart>
-                    </ResponsiveContainer>
+                    <div className="flex-1 w-full min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                         <PieChart><Pie data={servicePopularityData} innerRadius={60} outerRadius={80} dataKey="value" paddingAngle={5}>{servicePopularityData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip contentStyle={{backgroundColor:'#1e293b', borderColor:'#475569'}} /></PieChart>
+                      </ResponsiveContainer>
+                    </div>
                  </div>
               </div>
            </div>
