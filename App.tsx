@@ -14,6 +14,7 @@ import { AboutSection } from './components/AboutSection';
 import { ContactSection } from './components/ContactSection';
 import { AuthScreen } from './components/AuthScreen';
 import { WelcomeScreen } from './components/WelcomeScreen';
+import { MobileNav } from './components/MobileNav';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.WELCOME);
@@ -26,8 +27,13 @@ function App() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      // If user exists, skip welcome screen
-      setCurrentView(ViewState.HOME);
+      
+      // Smart Redirect based on role
+      if (parsedUser.isAdmin) {
+        setCurrentView(ViewState.ADMIN);
+      } else {
+        setCurrentView(ViewState.HOME);
+      }
     }
   }, []);
 
@@ -133,7 +139,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark flex flex-col font-sans text-gray-100">
+    <div className="min-h-screen bg-brand-dark flex flex-col font-sans text-gray-100 selection:bg-brand-primary selection:text-white">
       {!isFullScreen && (
         <Navbar 
           currentView={currentView} 
@@ -143,23 +149,18 @@ function App() {
         />
       )}
       
-      <main className="flex-grow">
+      {/* Add padding-bottom on mobile to prevent content from being hidden behind MobileNav */}
+      <main className={`flex-grow ${!isFullScreen ? 'pb-20 md:pb-0' : ''}`}>
         {renderView()}
       </main>
 
       {!isFullScreen && (
-        <Footer onNavigate={navigateTo} />
+        <>
+          <Footer onNavigate={navigateTo} />
+          <MobileNav currentView={currentView} onNavigate={navigateTo} />
+        </>
       )}
       
-      {/* Quick Exit for Admin */}
-      {currentView === ViewState.ADMIN && user?.isAdmin && (
-        <button 
-          onClick={() => navigateTo(ViewState.HOME)}
-          className="fixed bottom-4 right-4 bg-gray-800 text-gray-400 px-4 py-2 rounded-full border border-gray-700 hover:bg-gray-700 hover:text-white text-xs z-50 transition-colors"
-        >
-          Exit Dashboard View
-        </button>
-      )}
       {/* Quick Exit for Admin Login Screen */}
       {currentView === ViewState.ADMIN && (!user || !user.isAdmin) && (
         <button 

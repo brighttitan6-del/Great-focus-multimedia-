@@ -1,7 +1,6 @@
 
-
-import { ServiceItem, Booking, User, Project } from '../types';
-import { SERVICES, MOCK_BOOKINGS, MOCK_PROJECTS } from '../constants';
+import { ServiceItem, Booking, User, Project, PortfolioItem } from '../types';
+import { SERVICES, MOCK_BOOKINGS, MOCK_PROJECTS, PORTFOLIO_ITEMS } from '../constants';
 
 // --- CONFIGURATION ---
 const API_URL = 'http://localhost:5000/api'; 
@@ -13,6 +12,7 @@ const USE_MOCK_DATA = true;
 let mockServices: ServiceItem[] = [...SERVICES];
 let mockBookings: Booking[] = [...MOCK_BOOKINGS];
 let mockProjects: Project[] = [...MOCK_PROJECTS];
+let mockPortfolio: PortfolioItem[] = [...PORTFOLIO_ITEMS];
 
 // --- HELPERS ---
 const getHeaders = () => {
@@ -134,8 +134,14 @@ export const api = {
         setTimeout(() => resolve([...projects]), 300);
       });
     }
-    // Implement API call for projects if backend is ready
-    return [];
+    
+    // Real Implementation
+    let url = `${API_URL}/projects`;
+    if (userEmail) {
+        url = `${API_URL}/projects/find?email=${encodeURIComponent(userEmail)}`;
+    }
+    const res = await fetch(url, { headers: getHeaders() });
+    return res.json();
   },
 
   updateProject: async (id: string, updates: Partial<Project>): Promise<Project | undefined> => {
@@ -145,7 +151,59 @@ export const api = {
         resolve(mockProjects.find(p => p.id === id));
       });
     }
-    return undefined;
+    
+    const res = await fetch(`${API_URL}/projects/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(updates)
+    });
+    return res.json();
+  },
+
+  // PORTFOLIO
+  getPortfolio: async (): Promise<PortfolioItem[]> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => resolve([...mockPortfolio]), 500);
+      });
+    }
+    const res = await fetch(`${API_URL}/portfolio`);
+    return res.json();
+  },
+
+  addPortfolioItem: async (item: Partial<PortfolioItem>): Promise<PortfolioItem> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        const newItem = {
+          ...item,
+          id: 'p-' + Date.now()
+        } as PortfolioItem;
+        mockPortfolio = [newItem, ...mockPortfolio];
+        resolve(newItem);
+      });
+    }
+    
+    const res = await fetch(`${API_URL}/portfolio`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(item)
+    });
+    return res.json();
+  },
+
+  deletePortfolioItem: async (id: string): Promise<boolean> => {
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        mockPortfolio = mockPortfolio.filter(p => p.id !== id);
+        resolve(true);
+      });
+    }
+    
+    const res = await fetch(`${API_URL}/portfolio/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+    });
+    return res.ok;
   },
 
   // AUTH

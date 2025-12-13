@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -5,6 +6,8 @@ import dotenv from 'dotenv';
 import authRoute from './routes/auth.js';
 import serviceRoute from './routes/services.js';
 import bookingRoute from './routes/bookings.js';
+import projectRoute from './routes/projects.js';
+import portfolioRoute from './routes/portfolio.js';
 
 dotenv.config();
 
@@ -14,7 +17,6 @@ app.use(express.json());
 app.use(cors());
 
 // DB Connection
-// Check if connection exists to avoid multiple connections in serverless hot-reloads
 if (mongoose.connection.readyState === 0) {
     const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017/greatfocus';
     console.log("Attempting to connect to MongoDB...");
@@ -30,8 +32,10 @@ if (mongoose.connection.readyState === 0) {
 app.use("/api/auth", authRoute);
 app.use("/api/services", serviceRoute);
 app.use("/api/bookings", bookingRoute);
+app.use("/api/projects", projectRoute);
+app.use("/api/portfolio", portfolioRoute);
 
-// Only listen if not running in a serverless environment (Vercel)
+// Only listen if not running in a serverless environment
 if (process.env.VITE_VERCEL_ENV !== 'production' && !process.env.VERCEL) {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

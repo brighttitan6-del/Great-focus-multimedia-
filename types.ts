@@ -1,5 +1,4 @@
 
-
 export enum ViewState {
   WELCOME = 'WELCOME',
   HOME = 'HOME',
@@ -22,16 +21,31 @@ export enum ServiceCategory {
   EDUCATION = 'Education & Training'
 }
 
+export interface ServiceTier {
+  name: string;
+  price: number;
+  description: string;
+  features: string[];
+}
+
+export interface ServiceAddOn {
+  name: string;
+  price: number;
+}
+
 export interface ServiceItem {
   id: string;
   title: string;
   description: string;
-  priceStart: string;
+  priceStart: string; // Display string e.g. "MK 150,000"
   category: ServiceCategory;
   iconName: string;
   imageUrl: string;
   videoUrl?: string;
   isActive?: boolean;
+  tiers: ServiceTier[];
+  addOns: ServiceAddOn[];
+  // Legacy support optional
   packages?: {
     name: string;
     price: string;
@@ -43,15 +57,25 @@ export interface Booking {
   id: string;
   clientName: string;
   serviceId: string;
+  serviceName?: string; // Snapshot of service name
+  tierName?: string; // Selected tier
+  addOns?: string[]; // Selected add-ons names
   date: string;
   status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
   amount: number;
 }
 
+export interface ActivityLog {
+  id: string;
+  text: string;
+  date: string;
+  type?: 'info' | 'warning' | 'success';
+}
+
 export interface Project {
   id: string;
   client: string;
-  clientId?: string; // To link to logged-in user
+  clientId?: string; 
   clientEmail?: string;
   category: string;
   phone: string;
@@ -60,6 +84,7 @@ export interface Project {
   dueDate: string;
   progress: number;
   status: string;
+  activities?: ActivityLog[];
   deliverables?: {
     name: string;
     url: string;

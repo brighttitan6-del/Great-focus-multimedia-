@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Image as ImageIcon, Video, X, Clock, Trash2, CheckCircle, DollarSign, UploadCloud, Link as LinkIcon, Globe, MonitorPlay, FileVideo, Save } from 'lucide-react';
-import { ServiceCategory, ServiceItem } from '../types';
+import { Plus, Image as ImageIcon, Video, X, Clock, Trash2, CheckCircle, DollarSign, UploadCloud, Link as LinkIcon, Globe, MonitorPlay, FileVideo, Save, List, Star } from 'lucide-react';
+import { ServiceCategory, ServiceItem, ServiceTier, ServiceAddOn } from '../types';
 
 interface ServiceUploadFormProps {
   onCancel: () => void;
@@ -13,125 +13,99 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel, 
   const [title, setTitle] = useState(initialData?.title || '');
   const [category, setCategory] = useState<ServiceCategory>(initialData?.category || ServiceCategory.VIDEO_PRODUCTION);
   const [description, setDescription] = useState(initialData?.description || '');
+  const [priceStart, setPriceStart] = useState(initialData?.priceStart?.replace(/[^0-9]/g, '') || '');
   
-  // Extract number from MK string if present
-  const formatPrice = (p: string) => p?.replace(/[^0-9]/g, '') || '';
-  const [priceStart, setPriceStart] = useState(formatPrice(initialData?.priceStart || ''));
+  // New State for Tiers and Add-ons
+  const [tiers, setTiers] = useState<ServiceTier[]>(initialData?.tiers || [
+    { name: 'Standard', price: 0, description: '', features: [''] }
+  ]);
+  const [addOns, setAddOns] = useState<ServiceAddOn[]>(initialData?.addOns || []);
   
-  const [packages, setPackages] = useState(initialData?.packages || [{ name: 'Standard', price: '', time: '3 Days' }]);
-  
-  // Media State - Check if initial data uses external URLs
-  const hasExternalLinks = initialData && (
-    (initialData.imageUrl?.startsWith('http') && !initialData.imageUrl.includes('picsum')) || 
-    initialData.videoUrl?.startsWith('http')
-  );
-
-  const [mediaMode, setMediaMode] = useState<'upload' | 'url'>(hasExternalLinks ? 'url' : 'upload');
-  
-  // File Upload State
-  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(initialData?.imageUrl || null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [mediaMode, setMediaMode] = useState<'upload' | 'url'>('url');
   
   // URL State
   const [coverImageUrl, setCoverImageUrl] = useState(initialData?.imageUrl || '');
   const [promoVideoUrl, setPromoVideoUrl] = useState(initialData?.videoUrl || '');
 
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // If we switch to upload mode and have an initial image URL that isn't a blob, set it as preview
-    if (mediaMode === 'upload' && initialData?.imageUrl && !coverImagePreview) {
-       setCoverImagePreview(initialData.imageUrl);
-    }
-  }, [mediaMode, initialData, coverImagePreview]);
-
-  const handleAddPackage = () => {
-    setPackages([...packages, { name: '', price: '', time: '1 Week' }]);
+  // TIER MANAGEMENT
+  const handleAddTier = () => {
+    setTiers([...tiers, { name: '', price: 0, description: '', features: [''] }]);
+  };
+  
+  const handleRemoveTier = (index: number) => {
+    setTiers(tiers.filter((_, i) => i !== index));
   };
 
-  const handlePackageChange = (index: number, field: string, value: string) => {
-    const newPackages = [...packages];
-    (newPackages[index] as any)[field] = value;
-    setPackages(newPackages);
+  const handleTierChange = (index: number, field: keyof ServiceTier, value: any) => {
+    const newTiers = [...tiers];
+    (newTiers[index] as any)[field] = value;
+    setTiers(newTiers);
   };
 
-  const handleRemovePackage = (index: number) => {
-    setPackages(packages.filter((_, i) => i !== index));
+  const handleFeatureChange = (tierIndex: number, featureIndex: number, value: string) => {
+    const newTiers = [...tiers];
+    newTiers[tierIndex].features[featureIndex] = value;
+    setTiers(newTiers);
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Image size should be less than 5MB");
-        return;
+  const handleAddFeature = (tierIndex: number) => {
+    const newTiers = [...tiers];
+    newTiers[tierIndex].features.push('');
+    setTiers(newTiers);
+  };
+
+  const handleRemoveFeature = (tierIndex: number, featureIndex: number) => {
+    const newTiers = [...tiers];
+    newTiers[tierIndex].features = newTiers[tierIndex].features.filter((_, i) => i !== featureIndex);
+    setTiers(newTiers);
+  };
+
+  // ADD-ON MANAGEMENT
+  const handleAddAddOn = () => {
+    setAddOns([...addOns, { name: '', price: 0 }]);
+  };
+
+  const handleRemoveAddOn = (index: number) => {
+    setAddOns(addOns.filter((_, i) => i !== index));
+  };
+
+  const handleAddOnChange = (index: number, field: keyof ServiceAddOn, value: any) => {
+    const newAddOns = [...addOns];
+    (newAddOns[index] as any)[field] = value;
+    setAddOns(newAddOns);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setCoverImageUrl(reader.result as string);
+          };
+          reader.readAsDataURL(file);
       }
-      setCoverImageFile(file);
-      const prev = URL.createObjectURL(file);
-      setCoverImagePreview(prev);
-    }
-  };
-
-  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 50 * 1024 * 1024) {
-         alert("Video size should be less than 50MB for direct upload. Use a link for larger files.");
-         return;
-      }
-      setVideoFile(file);
-    }
-  };
-
-  const removeCoverImage = () => {
-    if (coverImagePreview && coverImagePreview.startsWith('blob:')) URL.revokeObjectURL(coverImagePreview);
-    setCoverImageFile(null);
-    setCoverImagePreview(null);
-    if (imageInputRef.current) imageInputRef.current.value = '';
-  };
-
-  const removeVideoFile = () => {
-    setVideoFile(null);
-    if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Determine final Media URLs
-    let finalImageUrl = 'https://picsum.photos/800/600'; // Default fallback
-    let finalVideoUrl = undefined;
-
-    if (mediaMode === 'upload') {
-      if (coverImagePreview) finalImageUrl = coverImagePreview;
-      if (videoFile) {
-        finalVideoUrl = URL.createObjectURL(videoFile); 
-      } else if (initialData?.videoUrl) {
-         // Keep existing video if not replaced and in upload mode (assuming simple preservation)
-         finalVideoUrl = initialData.videoUrl;
-      }
-    } else {
-      if (coverImageUrl) finalImageUrl = coverImageUrl;
-      if (promoVideoUrl) finalVideoUrl = promoVideoUrl;
-    }
-
-    const formattedPackages = packages.map(p => ({
-      ...p,
-      price: p.price.startsWith('MK') ? p.price : `MK ${p.price}`
-    }));
-
     const newService: ServiceItem = {
       id: initialData?.id || `s-${Date.now()}`,
       title,
       category,
       description,
-      priceStart: priceStart.startsWith('MK') ? priceStart : `MK ${priceStart}`,
-      imageUrl: finalImageUrl,
-      videoUrl: finalVideoUrl,
+      priceStart: priceStart.startsWith('MK') ? priceStart : `MK ${parseInt(priceStart || '0').toLocaleString()}`,
+      imageUrl: coverImageUrl || 'https://picsum.photos/800/600',
+      videoUrl: promoVideoUrl,
       iconName: initialData?.iconName || 'video', 
-      packages: formattedPackages
+      tiers: tiers,
+      addOns: addOns,
+      // Create legacy packages structure for backward compatibility
+      packages: tiers.map(t => ({
+        name: t.name,
+        price: `MK ${t.price.toLocaleString()}`,
+        time: 'N/A'
+      }))
     };
 
     onSave(newService);
@@ -142,10 +116,10 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel, 
       <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-700">
         <div>
            <h2 className="text-2xl font-bold text-white">
-             {initialData ? 'Edit Service Package' : 'Add New Service Package'}
+             {initialData ? 'Edit Service & Pricing' : 'Create New Service'}
            </h2>
            <p className="text-gray-400 text-sm">
-             {initialData ? 'Update the details below.' : 'Create a professional listing for your clients.'}
+             Configure tiers, features, and custom add-ons.
            </p>
         </div>
         <button onClick={onCancel} className="text-gray-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-colors">
@@ -158,7 +132,7 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel, 
         <div className="space-y-6">
            <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-brand-primary text-xs flex items-center justify-center">1</span>
-              Basic Information
+              Service Overview
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-8">
               <div>
@@ -191,245 +165,173 @@ export const ServiceUploadForm: React.FC<ServiceUploadFormProps> = ({ onCancel, 
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3} 
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary transition-all" 
-                  placeholder="Describe the service details, deliverables, and value proposition..."
+                  placeholder="Describe the service details..."
                   required
                 ></textarea>
               </div>
               <div>
-                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Starting Price (MK)</label>
+                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Display Price (MK)</label>
                  <div className="relative">
                    <DollarSign className="absolute left-3 top-3 text-gray-500 h-4 w-4" />
                    <input 
-                     type="text" 
+                     type="number" 
                      value={priceStart}
                      onChange={(e) => setPriceStart(e.target.value)}
-                     placeholder="150,000" 
+                     placeholder="150000" 
                      className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 pl-10 text-white focus:border-brand-primary outline-none focus:ring-1 focus:ring-brand-primary transition-all" 
                      required
                    />
                  </div>
               </div>
+              
+              <div>
+                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Cover Image</label>
+                 <div className="flex gap-2">
+                     <div className="flex-1 border border-gray-700 bg-gray-900 rounded-lg p-3 relative flex items-center gap-3">
+                         <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                         <div className="w-10 h-10 bg-gray-800 rounded flex items-center justify-center overflow-hidden">
+                             {coverImageUrl ? <img src={coverImageUrl} className="w-full h-full object-cover" /> : <ImageIcon className="text-gray-500" />}
+                         </div>
+                         <span className="text-sm text-gray-400">{coverImageUrl ? 'Image selected' : 'Upload image file'}</span>
+                     </div>
+                 </div>
+              </div>
            </div>
         </div>
 
-        {/* Media Section */}
+        {/* TIERS SECTION */}
         <div className="space-y-6 pt-6 border-t border-gray-700">
-           <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <div className="flex justify-between items-center pl-8">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-brand-primary text-xs flex items-center justify-center">2</span>
-              Media Assets
-           </h3>
-           <div className="pl-8">
-              {/* Media Toggle */}
-              <div className="flex bg-gray-900 p-1 rounded-lg w-fit mb-6 border border-gray-700">
-                 <button 
-                    type="button"
-                    onClick={() => setMediaMode('upload')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${mediaMode === 'upload' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
-                 >
-                    <UploadCloud className="h-4 w-4" /> Upload Files
-                 </button>
-                 <button 
-                    type="button"
-                    onClick={() => setMediaMode('url')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${mediaMode === 'url' ? 'bg-gray-700 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
-                 >
-                    <LinkIcon className="h-4 w-4" /> External Links
-                 </button>
-              </div>
+              Pricing Tiers
+            </h3>
+            <button 
+              type="button" 
+              onClick={handleAddTier} 
+              className="text-xs flex items-center gap-1 bg-brand-primary text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <Plus className="h-3 w-3" /> Add Tier
+            </button>
+          </div>
+          
+          <div className="pl-8 space-y-4">
+            {tiers.map((tier, idx) => (
+              <div key={idx} className="bg-gray-900/50 p-6 rounded-xl border border-gray-700 relative group hover:border-brand-primary/30 transition-colors">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded">Tier {idx + 1}</span>
+                  <button type="button" onClick={() => handleRemoveTier(idx)} className="text-red-400 hover:text-red-300">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {/* Cover Image */}
-                 <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                       Cover Image {mediaMode === 'upload' ? '(Required)' : '(URL)'}
-                    </label>
-                    
-                    {mediaMode === 'upload' ? (
-                       <div className="relative">
-                          <input 
-                             type="file" 
-                             ref={imageInputRef} 
-                             onChange={handleImageSelect} 
-                             className="hidden" 
-                             accept="image/*"
-                          />
-                          {coverImagePreview ? (
-                             <div className="relative aspect-video rounded-lg overflow-hidden border border-gray-600 group">
-                                <img src={coverImagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                   <button type="button" onClick={removeCoverImage} className="bg-red-600 text-white p-2 rounded-full hover:scale-110 transition-transform">
-                                      <Trash2 className="h-5 w-5" />
-                                   </button>
-                                </div>
-                             </div>
-                          ) : (
-                             <div 
-                                onClick={() => imageInputRef.current?.click()}
-                                className="border-2 border-dashed border-gray-600 bg-gray-900/50 rounded-lg aspect-video flex flex-col items-center justify-center cursor-pointer hover:border-brand-primary hover:bg-gray-800 transition-all group"
-                             >
-                                <div className="p-3 bg-gray-800 rounded-full group-hover:bg-brand-primary/20 transition-colors mb-2">
-                                   <ImageIcon className="h-8 w-8 text-gray-500 group-hover:text-brand-primary" />
-                                </div>
-                                <span className="text-gray-400 text-sm font-medium group-hover:text-white">Click to Upload Cover</span>
-                                <span className="text-gray-600 text-xs mt-1">JPG, PNG (Max 5MB)</span>
-                             </div>
-                          )}
-                       </div>
-                    ) : (
-                       <div className="relative">
-                          <Globe className="absolute left-3 top-3 text-gray-500 h-4 w-4" />
-                          <input 
-                             type="text" 
-                             value={coverImageUrl}
-                             onChange={(e) => setCoverImageUrl(e.target.value)}
-                             placeholder="https://example.com/image.jpg"
-                             className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 pl-10 text-white focus:border-brand-primary outline-none transition-all"
-                          />
-                          {coverImageUrl && (
-                             <div className="mt-3 aspect-video rounded-lg overflow-hidden border border-gray-700 bg-black">
-                                <img src={coverImageUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                             </div>
-                          )}
-                       </div>
-                    )}
-                 </div>
-
-                 {/* Promo Video */}
-                 <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                       Promo Video {mediaMode === 'upload' ? '(Optional)' : '(YouTube/Vimeo)'}
-                    </label>
-                    
-                    {mediaMode === 'upload' ? (
-                       <div className="relative">
-                          <input 
-                             type="file" 
-                             ref={videoInputRef} 
-                             onChange={handleVideoSelect} 
-                             className="hidden" 
-                             accept="video/*"
-                          />
-                          {videoFile ? (
-                             <div className="relative h-full min-h-[160px] bg-gray-900 rounded-lg border border-green-500/50 flex flex-col items-center justify-center p-4">
-                                <FileVideo className="h-10 w-10 text-green-500 mb-2" />
-                                <span className="text-white text-sm font-medium text-center truncate w-full px-4">{videoFile.name}</span>
-                                <span className="text-gray-500 text-xs">{(videoFile.size / (1024*1024)).toFixed(2)} MB</span>
-                                <button type="button" onClick={removeVideoFile} className="mt-3 text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
-                                   <Trash2 className="h-3 w-3" /> Remove
-                                </button>
-                             </div>
-                          ) : (
-                             <div 
-                                onClick={() => videoInputRef.current?.click()}
-                                className="border-2 border-dashed border-gray-600 bg-gray-900/50 rounded-lg aspect-video flex flex-col items-center justify-center cursor-pointer hover:border-brand-accent hover:bg-gray-800 transition-all group"
-                             >
-                                <div className="p-3 bg-gray-800 rounded-full group-hover:bg-brand-accent/20 transition-colors mb-2">
-                                   <Video className="h-8 w-8 text-gray-500 group-hover:text-brand-accent" />
-                                </div>
-                                <span className="text-gray-400 text-sm font-medium group-hover:text-white">Upload Promo Video</span>
-                                <span className="text-gray-600 text-xs mt-1">MP4, MOV (Max 50MB)</span>
-                             </div>
-                          )}
-                       </div>
-                    ) : (
-                       <div className="relative">
-                          <MonitorPlay className="absolute left-3 top-3 text-gray-500 h-4 w-4" />
-                          <input 
-                             type="text" 
-                             value={promoVideoUrl}
-                             onChange={(e) => setPromoVideoUrl(e.target.value)}
-                             placeholder="https://youtube.com/watch?v=..."
-                             className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 pl-10 text-white focus:border-brand-primary outline-none transition-all"
-                          />
-                          <p className="text-[10px] text-gray-500 mt-1">Supports YouTube, Vimeo, or direct video links.</p>
-                          {promoVideoUrl && (
-                             <div className="mt-2 text-xs text-brand-primary flex items-center gap-1">
-                                <CheckCircle className="h-3 w-3" /> Link Ready
-                             </div>
-                          )}
-                       </div>
-                    )}
-                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                     <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Tier Name</label>
+                     <input 
+                      type="text" 
+                      value={tier.name}
+                      onChange={(e) => handleTierChange(idx, 'name', e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm" 
+                      placeholder="e.g. Gold Package" 
+                     />
+                  </div>
+                  <div>
+                     <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Price (MK)</label>
+                     <input 
+                      type="number" 
+                      value={tier.price}
+                      onChange={(e) => handleTierChange(idx, 'price', parseInt(e.target.value) || 0)}
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm" 
+                      placeholder="0" 
+                     />
+                  </div>
+                  <div className="md:col-span-2">
+                     <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Description</label>
+                     <input 
+                      type="text" 
+                      value={tier.description}
+                      onChange={(e) => handleTierChange(idx, 'description', e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm" 
+                      placeholder="Brief summary of this tier" 
+                     />
+                  </div>
+                </div>
+                
+                {/* Features List */}
+                <div className="bg-gray-800/50 p-3 rounded-lg border border-gray-700/50">
+                   <label className="text-[10px] text-gray-500 uppercase font-bold mb-2 block">Included Features</label>
+                   <div className="space-y-2">
+                      {tier.features.map((feature, fIdx) => (
+                         <div key={fIdx} className="flex gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500 mt-2 shrink-0" />
+                            <input 
+                              type="text" 
+                              value={feature}
+                              onChange={(e) => handleFeatureChange(idx, fIdx, e.target.value)}
+                              className="w-full bg-transparent border-b border-gray-600 py-1 text-sm text-gray-300 focus:border-brand-primary outline-none"
+                              placeholder="Feature detail"
+                            />
+                            <button type="button" onClick={() => handleRemoveFeature(idx, fIdx)} className="text-gray-600 hover:text-red-400">
+                               <X className="h-3 w-3" />
+                            </button>
+                         </div>
+                      ))}
+                      <button 
+                        type="button" 
+                        onClick={() => handleAddFeature(idx)}
+                        className="text-xs text-brand-primary hover:text-white mt-2 flex items-center gap-1"
+                      >
+                         <Plus className="h-3 w-3" /> Add Feature
+                      </button>
+                   </div>
+                </div>
               </div>
-           </div>
+            ))}
+          </div>
         </div>
 
-        {/* Package Builder */}
+        {/* ADD-ONS SECTION */}
         <div className="space-y-6 pt-6 border-t border-gray-700">
           <div className="flex justify-between items-center pl-8">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-brand-primary text-xs flex items-center justify-center">3</span>
-              Service Packages
+              Optional Add-ons
             </h3>
             <button 
               type="button" 
-              onClick={handleAddPackage} 
-              className="text-xs flex items-center gap-1 bg-brand-primary text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors shadow-lg"
+              onClick={handleAddAddOn} 
+              className="text-xs flex items-center gap-1 bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-600 transition-colors"
             >
-              <Plus className="h-3 w-3" /> Add Package
+              <Plus className="h-3 w-3" /> Add Item
             </button>
           </div>
           
-          <div className="pl-8 space-y-3">
-            {packages.map((pkg, idx) => (
-              <div key={idx} className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 flex flex-col md:flex-row gap-4 items-center animate-fade-in relative group hover:border-brand-primary/30 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-500 text-xs font-bold border border-gray-700 group-hover:border-brand-primary/50 group-hover:text-brand-primary transition-colors">
-                   {idx + 1}
-                </div>
-                
-                <div className="flex-1 w-full">
-                   <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Package Name</label>
+          <div className="pl-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+             {addOns.map((addon, idx) => (
+                <div key={idx} className="flex gap-2 items-center bg-gray-900 p-3 rounded-lg border border-gray-700">
                    <input 
-                    type="text" 
-                    value={pkg.name}
-                    onChange={(e) => handlePackageChange(idx, 'name', e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none" 
-                    placeholder="e.g. Gold Package" 
+                      type="text" 
+                      value={addon.name}
+                      onChange={(e) => handleAddOnChange(idx, 'name', e.target.value)}
+                      className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm"
+                      placeholder="Add-on Name"
                    />
-                </div>
-
-                <div className="w-full md:w-32">
-                   <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Price</label>
-                   <input 
-                    type="text" 
-                    value={pkg.price}
-                    onChange={(e) => handlePackageChange(idx, 'price', e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-brand-primary outline-none" 
-                    placeholder="Price" 
-                   />
-                </div>
-
-                <div className="w-full md:w-40">
-                   <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Turnaround</label>
-                   <div className="relative">
-                      <Clock className="absolute left-2 top-2.5 text-gray-500 h-3 w-3" />
-                      <select 
-                        value={pkg.time}
-                        onChange={(e) => handlePackageChange(idx, 'time', e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 pl-7 text-white text-sm focus:border-brand-primary outline-none appearance-none"
-                      >
-                        <option>24 Hours</option>
-                        <option>2-3 Days</option>
-                        <option>1 Week</option>
-                        <option>2 Weeks</option>
-                        <option>1 Month</option>
-                        <option>Custom</option>
-                      </select>
+                   <div className="relative w-32">
+                      <span className="absolute left-2 top-2 text-gray-500 text-xs">MK</span>
+                      <input 
+                        type="number" 
+                        value={addon.price}
+                        onChange={(e) => handleAddOnChange(idx, 'price', parseInt(e.target.value) || 0)}
+                        className="w-full bg-gray-800 border border-gray-600 rounded pl-8 pr-2 py-2 text-white text-sm text-right"
+                      />
                    </div>
+                   <button type="button" onClick={() => handleRemoveAddOn(idx)} className="text-gray-500 hover:text-red-400 p-1">
+                      <X className="h-4 w-4" />
+                   </button>
                 </div>
-
-                {packages.length > 1 && (
-                  <button 
-                    type="button"
-                    onClick={() => handleRemovePackage(idx)}
-                    className="text-gray-500 hover:text-red-400 p-2 transition-colors self-end md:self-center"
-                    title="Remove Package"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+             ))}
+             {addOns.length === 0 && <p className="text-gray-500 text-sm italic col-span-2">No add-ons configured.</p>}
           </div>
         </div>
 

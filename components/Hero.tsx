@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ViewState } from '../types';
 import { ArrowRight, Play, Phone } from 'lucide-react';
@@ -46,7 +47,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
               href="tel:+265883526602"
               className="px-8 py-4 bg-brand-accent hover:bg-amber-600 text-white rounded-lg font-bold transition-all shadow-lg hover:shadow-amber-500/25 flex items-center justify-center gap-2"
             >
-              Call +265 883 526 602
+              Book a Quick Call
               <Phone className="h-5 w-5" />
             </a>
             <button 

@@ -1,10 +1,9 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { SERVICES } from '../constants';
-import { ServiceItem, Project, User } from '../types';
+import { ServiceItem, Project, User, ServiceTier, ServiceAddOn } from '../types';
 import { api } from '../services/api';
-import { Check, Calendar, Clock, CreditCard, UploadCloud, CheckCircle, Home, Download, AlertCircle, Plus, FileText, Video, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Check, Calendar, Clock, CreditCard, UploadCloud, CheckCircle, Home, Download, AlertCircle, Plus, FileText, Video, Image as ImageIcon, Loader2, ArrowRight } from 'lucide-react';
 
 interface BookingFlowProps {
   preSelectedServiceId?: string;
@@ -18,11 +17,12 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
-  // Booking Form State
+  // Booking Wizard State
   const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState<ServiceItem | undefined>(
-    SERVICES.find(s => s.id === preSelectedServiceId)
-  );
+  const [selectedService, setSelectedService] = useState<ServiceItem | undefined>(undefined);
+  const [selectedTier, setSelectedTier] = useState<ServiceTier | null>(null);
+  const [selectedAddOns, setSelectedAddOns] = useState<ServiceAddOn[]>([]);
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -31,12 +31,11 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
     date: '',
     time: '',
     notes: '',
-    paymentMethod: 'airtel' // airtel, tnm, card
+    paymentMethod: 'airtel'
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // Get current user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       const u = JSON.parse(storedUser);
@@ -44,16 +43,14 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
       setFormData(prev => ({ ...prev, name: u.name, email: u.email }));
     }
 
-    // Determine initial mode
     if (preSelectedServiceId) {
        setViewMode('CREATE');
-       setSelectedService(SERVICES.find(s => s.id === preSelectedServiceId));
-       setStep(2);
+       const service = SERVICES.find(s => s.id === preSelectedServiceId);
+       setSelectedService(service);
+       if(service) setStep(2); // Skip to tier selection
     } else if (storedUser) {
-       // Load user projects
        loadProjects(JSON.parse(storedUser).email);
     } else {
-       // Guest trying to book
        setViewMode('CREATE');
     }
   }, [preSelectedServiceId]);
@@ -71,8 +68,33 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
   };
 
   const handleServiceSelect = (id: string) => {
-    setSelectedService(SERVICES.find(s => s.id === id));
+    const service = SERVICES.find(s => s.id === id);
+    setSelectedService(service);
+    setSelectedTier(null); // Reset tier if service changes
+    setSelectedAddOns([]);
     setStep(2);
+  };
+
+  const handleTierSelect = (tier: ServiceTier) => {
+     setSelectedTier(tier);
+  };
+
+  const toggleAddOn = (addon: ServiceAddOn) => {
+     if (selectedAddOns.find(a => a.name === addon.name)) {
+        setSelectedAddOns(selectedAddOns.filter(a => a.name !== addon.name));
+     } else {
+        setSelectedAddOns([...selectedAddOns, addon]);
+     }
+  };
+
+  const calculateTotal = () => {
+     const tierPrice = selectedTier?.price || 0;
+     const addOnsPrice = selectedAddOns.reduce((acc, curr) => acc + curr.price, 0);
+     return tierPrice + addOnsPrice;
+  };
+
+  const calculateDeposit = () => {
+     return calculateTotal() / 2;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -87,22 +109,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
     const now = new Date();
 
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
-    const phoneRegex = /^\+?[0-9]{7,15}$/;
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!phoneRegex.test(cleanPhone)) {
-      newErrors.phone = 'Enter a valid phone number (e.g. +1 234...)';
-    }
-
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.time) newErrors.time = 'Time is required';
 
@@ -110,15 +118,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
       const selectedDateTime = new Date(`${formData.date}T${formData.time}`);
       if (selectedDateTime <= now) {
         newErrors.date = 'Please select a future date and time';
-        newErrors.time = ' ';
       }
-    } else if (formData.date) {
-        const selectedDate = new Date(formData.date);
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        if (selectedDate < today) {
-            newErrors.date = 'Date cannot be in the past';
-        }
     }
 
     setErrors(newErrors);
@@ -128,24 +128,17 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      setStep(3); // Go to payment
+      setStep(4); // Go to payment
     }
   };
 
   const handlePayment = () => {
     setIsProcessing(true);
-    // Simulate API call
     setTimeout(() => {
       setIsProcessing(false);
-      setStep(4); // Go to confirmation screen
-      if (user) loadProjects(user.email); // Refresh projects if logged in
+      setStep(5);
+      if (user) loadProjects(user.email);
     }, 2000);
-  };
-
-  const calculateDeposit = (priceStr: string | undefined) => {
-    if (!priceStr) return '0';
-    const amount = parseInt(priceStr.replace(/[^0-9]/g, ''));
-    return isNaN(amount) ? '0' : (amount / 2).toLocaleString();
   };
 
   const getInputClass = (fieldName: string) => `
@@ -204,16 +197,12 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                                 </span>
                              </div>
                           </div>
-
-                          {/* Progress Bar */}
                           <div className="w-full bg-gray-900 h-2 rounded-full mb-6 overflow-hidden">
                              <div 
                                 className={`h-full rounded-full transition-all duration-1000 ${project.status === 'Completed' ? 'bg-green-500' : 'bg-brand-primary'}`} 
                                 style={{ width: `${project.progress}%` }}
                              ></div>
                           </div>
-
-                          {/* Deliverables Section */}
                           {project.deliverables && project.deliverables.length > 0 && (
                              <div className="bg-black/20 rounded-lg p-4 border border-white/5">
                                 <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
@@ -242,11 +231,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                                 </div>
                              </div>
                           )}
-                          
-                          {/* Empty State for deliverables if completed but no files */}
-                          {project.status === 'Completed' && (!project.deliverables || project.deliverables.length === 0) && (
-                             <p className="text-sm text-gray-500 italic">Files are being prepared for upload...</p>
-                          )}
                        </div>
                     ))}
                  </div>
@@ -272,9 +256,10 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
           <div className="flex items-center justify-between mb-8 text-sm">
             {[
               { num: 1, label: 'Service' },
-              { num: 2, label: 'Details' },
-              { num: 3, label: 'Payment' },
-              { num: 4, label: 'Done' }
+              { num: 2, label: 'Package' },
+              { num: 3, label: 'Details' },
+              { num: 4, label: 'Payment' },
+              { num: 5, label: 'Done' }
             ].map((s, idx) => (
               <React.Fragment key={s.num}>
                 <div className={`flex flex-col items-center ${step >= s.num ? 'text-brand-primary' : 'text-gray-500'}`}>
@@ -283,9 +268,9 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   }`}>
                     {step > s.num ? <Check className="w-5 h-5" /> : s.num}
                   </div>
-                  <span className="hidden sm:inline">{s.label}</span>
+                  <span className="hidden sm:inline text-xs">{s.label}</span>
                 </div>
-                {idx < 3 && (
+                {idx < 4 && (
                   <div className={`h-1 flex-1 mx-2 sm:mx-4 transition-colors duration-300 ${step > idx + 1 ? 'bg-brand-primary' : 'bg-white/10'}`} />
                 )}
               </React.Fragment>
@@ -318,113 +303,148 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
             </div>
           )}
 
-          {/* STEP 2: Details Form */}
-          {step === 2 && (
+          {/* STEP 2: Select Tier & Add-ons */}
+          {step === 2 && selectedService && (
+            <div className="animate-fade-in">
+               <h2 className="text-2xl font-bold text-white mb-6">Choose Your Package</h2>
+               
+               <div className="space-y-6 mb-8">
+                  {selectedService.tiers.map((tier, idx) => (
+                     <div 
+                        key={idx}
+                        onClick={() => handleTierSelect(tier)}
+                        className={`p-5 rounded-xl border cursor-pointer transition-all ${
+                           selectedTier?.name === tier.name
+                           ? 'bg-brand-primary/20 border-brand-primary ring-1 ring-brand-primary'
+                           : 'bg-white/5 border-white/10 hover:border-gray-500'
+                        }`}
+                     >
+                        <div className="flex justify-between items-start mb-2">
+                           <div>
+                              <h3 className="text-white font-bold text-lg">{tier.name}</h3>
+                              <p className="text-gray-400 text-sm">{tier.description}</p>
+                           </div>
+                           <span className="text-brand-accent font-bold text-lg">MK {tier.price.toLocaleString()}</span>
+                        </div>
+                        <ul className="grid grid-cols-2 gap-2 text-xs text-gray-300 mt-4 border-t border-white/10 pt-3">
+                           {tier.features.map((feat, i) => (
+                              <li key={i} className="flex items-center gap-2"><CheckCircle className="h-3 w-3 text-green-500" /> {feat}</li>
+                           ))}
+                        </ul>
+                     </div>
+                  ))}
+               </div>
+
+               {selectedService.addOns.length > 0 && (
+                  <div className="mb-8">
+                     <h3 className="text-white font-bold mb-4">Optional Add-ons</h3>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {selectedService.addOns.map((addon, idx) => {
+                           const isSelected = selectedAddOns.some(a => a.name === addon.name);
+                           return (
+                              <div 
+                                 key={idx}
+                                 onClick={() => toggleAddOn(addon)}
+                                 className={`p-3 rounded-lg border cursor-pointer flex justify-between items-center transition-all ${
+                                    isSelected ? 'bg-green-500/20 border-green-500' : 'bg-black/20 border-white/10'
+                                 }`}
+                              >
+                                 <span className="text-gray-200 text-sm">{addon.name}</span>
+                                 <span className="text-brand-primary font-bold text-sm">+ MK {addon.price.toLocaleString()}</span>
+                              </div>
+                           );
+                        })}
+                     </div>
+                  </div>
+               )}
+
+               <div className="flex gap-4">
+                  <button onClick={() => setStep(1)} className="px-6 py-3 rounded-lg border border-white/10 text-white hover:bg-white/10">Back</button>
+                  <button 
+                     onClick={() => setStep(3)} 
+                     disabled={!selectedTier}
+                     className="flex-1 px-6 py-3 rounded-lg bg-brand-primary text-white font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                     Continue to Details
+                  </button>
+               </div>
+            </div>
+          )}
+
+          {/* STEP 3: Details Form */}
+          {step === 3 && (
             <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
-              <h2 className="text-2xl font-bold text-white mb-6">Project Details</h2>
+              <h2 className="text-2xl font-bold text-white mb-6">Contact Details</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Full Name</label>
-                  <input 
-                    name="name" 
-                    onChange={handleChange} 
-                    value={formData.name} 
-                    type="text" 
-                    className={getInputClass('name')}
-                    placeholder="Enter your name" 
-                  />
-                  {errors.name && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.name}</p>}
+                  <input name="name" onChange={handleChange} value={formData.name} type="text" className={getInputClass('name')} placeholder="Enter your name" />
+                  {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Email</label>
-                  <input 
-                    name="email" 
-                    onChange={handleChange} 
-                    value={formData.email} 
-                    type="email" 
-                    className={getInputClass('email')}
-                    placeholder="Enter your email" 
-                  />
-                  {errors.email && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.email}</p>}
+                  <input name="email" onChange={handleChange} value={formData.email} type="email" className={getInputClass('email')} placeholder="Enter your email" />
+                  {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Phone</label>
-                <input 
-                  name="phone" 
-                  onChange={handleChange} 
-                  value={formData.phone} 
-                  type="tel" 
-                  className={getInputClass('phone')}
-                  placeholder="Enter your phone number" 
-                />
-                {errors.phone && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.phone}</p>}
+                <input name="phone" onChange={handleChange} value={formData.phone} type="tel" className={getInputClass('phone')} placeholder="Enter your phone number" />
+                {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-3 text-gray-500 h-5 w-5" />
-                    <input 
-                      name="date" 
-                      onChange={handleChange} 
-                      value={formData.date} 
-                      type="date" 
-                      className={`${getInputClass('date')} pl-10`} 
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                  {errors.date && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.date}</p>}
+                  <input name="date" onChange={handleChange} value={formData.date} type="date" className={getInputClass('date')} min={new Date().toISOString().split('T')[0]} />
+                  {errors.date && <p className="text-red-400 text-xs mt-1">{errors.date}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Time</label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-3 text-gray-500 h-5 w-5" />
-                    <input 
-                      name="time" 
-                      onChange={handleChange} 
-                      value={formData.time} 
-                      type="time" 
-                      className={`${getInputClass('time')} pl-10`} 
-                    />
-                  </div>
-                  {errors.time && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.time}</p>}
+                  <input name="time" onChange={handleChange} value={formData.time} type="time" className={getInputClass('time')} />
+                  {errors.time && <p className="text-red-400 text-xs mt-1">{errors.time}</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Project Brief / Notes</label>
-                <textarea name="notes" onChange={handleChange} value={formData.notes} rows={4} className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-brand-primary outline-none" placeholder="Describe your vision, specific shots needed, or music preference..."></textarea>
-              </div>
-
-              <div>
-                  <label className="block text-sm text-gray-400 mb-1">Upload Reference (Optional)</label>
-                  <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:bg-white/5 transition-colors cursor-pointer relative">
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" />
-                    <UploadCloud className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-400">Tap to upload files (PDF, JPG, PNG)</p>
-                  </div>
+                <label className="block text-sm text-gray-400 mb-1">Project Brief</label>
+                <textarea name="notes" onChange={handleChange} value={formData.notes} rows={3} className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-brand-primary outline-none" placeholder="Describe your vision..."></textarea>
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setStep(1)} className="flex-1 px-6 py-3 rounded-lg border border-white/10 text-white hover:bg-white/10">Back</button>
-                <button type="submit" className="flex-1 px-6 py-3 rounded-lg bg-brand-primary text-white font-bold hover:bg-blue-600">Continue</button>
+                <button type="button" onClick={() => setStep(2)} className="px-6 py-3 rounded-lg border border-white/10 text-white hover:bg-white/10">Back</button>
+                <button type="submit" className="flex-1 px-6 py-3 rounded-lg bg-brand-primary text-white font-bold hover:bg-blue-600">Review & Pay</button>
               </div>
             </form>
           )}
 
-          {/* STEP 3: Payment */}
-          {step === 3 && (
+          {/* STEP 4: Payment */}
+          {step === 4 && (
             <div className="animate-fade-in">
               <h2 className="text-2xl font-bold text-white mb-2">Secure Deposit</h2>
-              <p className="text-gray-400 mb-6">A 50% deposit is required to secure your booking.</p>
+              <p className="text-gray-400 mb-6">Review your order and pay the 50% deposit.</p>
               
-              <div className="bg-brand-primary/10 p-4 rounded-lg border border-brand-primary/20 mb-8 flex justify-between items-center">
-                <span className="text-white font-medium">{selectedService?.title}</span>
-                <span className="text-brand-accent font-bold text-lg">{selectedService?.priceStart}</span>
+              <div className="bg-white/5 rounded-xl p-6 mb-8 border border-white/10">
+                 <div className="flex justify-between items-center mb-2">
+                    <span className="text-white">{selectedTier?.name}</span>
+                    <span className="text-white">MK {selectedTier?.price.toLocaleString()}</span>
+                 </div>
+                 {selectedAddOns.map((ao, i) => (
+                    <div key={i} className="flex justify-between items-center text-sm text-gray-400 mb-1">
+                       <span>+ {ao.name}</span>
+                       <span>MK {ao.price.toLocaleString()}</span>
+                    </div>
+                 ))}
+                 <div className="border-t border-white/10 mt-4 pt-4 flex justify-between items-center">
+                    <span className="text-white font-bold">Total Estimate</span>
+                    <span className="text-white font-bold">MK {calculateTotal().toLocaleString()}</span>
+                 </div>
+                 <div className="flex justify-between items-center mt-2 text-brand-primary">
+                    <span className="font-bold">Deposit Due (50%)</span>
+                    <span className="font-bold text-xl">MK {calculateDeposit().toLocaleString()}</span>
+                 </div>
               </div>
 
               <h3 className="text-white font-bold mb-4">Select Payment Method</h3>
@@ -433,7 +453,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <input type="radio" name="paymentMethod" value="airtel" checked={formData.paymentMethod === 'airtel'} onChange={handleChange} className="mr-3 w-5 h-5 text-brand-primary" />
                   <div className="flex-1">
                     <span className="text-white font-bold block">Airtel Money</span>
-                    <span className="text-xs text-gray-400">Pay using Mobile Money</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-red-600"></div>
                 </label>
@@ -442,7 +461,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <input type="radio" name="paymentMethod" value="tnm" checked={formData.paymentMethod === 'tnm'} onChange={handleChange} className="mr-3 w-5 h-5 text-brand-primary" />
                   <div className="flex-1">
                     <span className="text-white font-bold block">TNM Mpamba</span>
-                    <span className="text-xs text-gray-400">Pay using Mobile Money</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-green-600"></div>
                 </label>
@@ -451,14 +469,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                   <input type="radio" name="paymentMethod" value="card" checked={formData.paymentMethod === 'card'} onChange={handleChange} className="mr-3 w-5 h-5 text-brand-primary" />
                   <div className="flex-1">
                     <span className="text-white font-bold block">Card Payment</span>
-                    <span className="text-xs text-gray-400">Visa / Mastercard</span>
                   </div>
                   <CreditCard className="text-white" />
                 </label>
               </div>
 
               <div className="flex gap-4">
-                <button disabled={isProcessing} onClick={() => setStep(2)} className="flex-1 px-6 py-3 rounded-lg border border-white/10 text-white hover:bg-white/10 disabled:opacity-50">Back</button>
+                <button disabled={isProcessing} onClick={() => setStep(3)} className="flex-1 px-6 py-3 rounded-lg border border-white/10 text-white hover:bg-white/10 disabled:opacity-50">Back</button>
                 <button 
                   onClick={handlePayment} 
                   disabled={isProcessing}
@@ -470,8 +487,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
             </div>
           )}
 
-          {/* STEP 4: Confirmation */}
-          {step === 4 && (
+          {/* STEP 5: Confirmation */}
+          {step === 5 && (
              <div className="text-center animate-scale-in">
                 <div className="mb-6 inline-flex p-4 rounded-full bg-green-500/10 text-green-500">
                   <CheckCircle className="w-16 h-16" />
@@ -489,21 +506,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ preSelectedServiceId, 
                           <span className="text-white font-medium text-right">{selectedService?.title}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                          <span className="text-gray-400">Date & Time</span>
-                          <div className="text-right">
-                             <div className="text-white font-medium">{formData.date}</div>
-                             <div className="text-gray-500 text-xs">{formData.time}</div>
-                          </div>
+                          <span className="text-gray-400">Package</span>
+                          <span className="text-white font-medium text-right">{selectedTier?.name}</span>
                       </div>
                       
-                      <div className="flex justify-between items-center">
-                          <span className="text-gray-400">Total Value</span>
-                          <span className="text-gray-500 line-through text-xs">{selectedService?.priceStart}</span>
-                      </div>
-
                       <div className="flex justify-between items-center bg-green-500/10 p-2 rounded-lg -mx-2">
-                          <span className="text-green-400 font-bold">Deposit Paid (50%)</span>
-                          <span className="text-white font-bold text-lg">MK {calculateDeposit(selectedService?.priceStart)}</span>
+                          <span className="text-green-400 font-bold">Deposit Paid</span>
+                          <span className="text-white font-bold text-lg">MK {calculateDeposit().toLocaleString()}</span>
                       </div>
 
                       <div className="flex justify-between items-center pt-2">
