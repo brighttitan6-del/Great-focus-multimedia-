@@ -34,13 +34,14 @@ export const Portfolio: React.FC = () => {
   const handleItemClick = (item: PortfolioItem) => {
     if (item.type === 'video' && item.videoUrl) {
       setViewingItem({ type: 'video', url: item.videoUrl });
-    } else if (item.type === 'image') {
+    } else if (item.type === 'image' || (item.type === 'video' && !item.videoUrl)) {
+      // Fallback to image for video if no URL, or standard image
       setViewingItem({ type: 'image', url: item.imageUrl });
     }
   };
 
   return (
-    <div className="py-20 bg-[#0b1120]">
+    <div className="py-20 bg-[#0b1120] min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-4">Featured Work</h2>
@@ -79,15 +80,19 @@ export const Portfolio: React.FC = () => {
                   alt={item.title} 
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-center p-4">
-                  <h3 className="text-white font-bold text-xl mb-1">{item.title}</h3>
-                  <p className="text-brand-accent text-sm uppercase tracking-wide mb-4">{item.category}</p>
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-center p-4 backdrop-blur-[2px]">
+                  <h3 className="text-white font-bold text-xl mb-1 translate-y-4 group-hover:translate-y-0 transition-transform duration-300">{item.title}</h3>
+                  <p className="text-brand-accent text-sm uppercase tracking-wide mb-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">{item.category}</p>
+                  
                   {item.type === 'video' ? (
-                    <PlayCircle className="w-16 h-16 text-white drop-shadow-lg scale-90 group-hover:scale-100 transition-transform duration-300" />
+                    <PlayCircle className="w-16 h-16 text-white drop-shadow-lg scale-90 group-hover:scale-100 transition-transform duration-300 hover:text-brand-primary" />
                   ) : (
-                    <Maximize2 className="w-12 h-12 text-white drop-shadow-lg scale-90 group-hover:scale-100 transition-transform duration-300" />
+                    <Maximize2 className="w-12 h-12 text-white drop-shadow-lg scale-90 group-hover:scale-100 transition-transform duration-300 hover:text-brand-primary" />
                   )}
-                  <p className="text-xs text-gray-300 mt-2">Click to view</p>
+                  
+                  <p className="text-xs text-gray-300 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                    {item.type === 'video' ? 'Click to Watch' : 'View Full Image'}
+                  </p>
                 </div>
               </div>
             ))}
@@ -107,15 +112,15 @@ export const Portfolio: React.FC = () => {
           onClick={() => setViewingItem(null)}
         >
           <div 
-            className={`relative w-full ${viewingItem.type === 'video' ? 'max-w-5xl aspect-video' : 'max-w-5xl h-[85vh]'} bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex items-center justify-center`}
+            className={`relative w-full ${viewingItem.type === 'video' ? 'max-w-5xl aspect-video' : 'max-w-5xl h-auto max-h-[90vh]'} bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex items-center justify-center`}
             onClick={(e) => e.stopPropagation()}
           >
             <button 
               onClick={() => setViewingItem(null)} 
-              className="absolute top-4 right-4 z-50 text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-colors backdrop-blur-md border border-white/10"
+              className="absolute top-4 right-4 z-50 text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-colors backdrop-blur-md border border-white/10 group"
               aria-label="Close view"
             >
-              <X className="w-6 h-6" />
+              <X className="w-6 h-6 group-hover:rotate-90 transition-transform" />
             </button>
             
             {viewingItem.type === 'video' ? (
@@ -127,7 +132,7 @@ export const Portfolio: React.FC = () => {
               <img 
                 src={viewingItem.url} 
                 alt="Portfolio Fullscreen" 
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain max-h-[85vh]"
               />
             )}
           </div>

@@ -135,7 +135,6 @@ export const api = {
       });
     }
     
-    // Real Implementation
     let url = `${API_URL}/projects`;
     if (userEmail) {
         url = `${API_URL}/projects/find?email=${encodeURIComponent(userEmail)}`;
@@ -211,7 +210,6 @@ export const api = {
     if (USE_MOCK_DATA) {
       return new Promise((resolve, reject) => {
         setTimeout(() => {
-          // ADMIN CREDENTIAL CHECK
           if (credentials.email === 'admin@greatfocus00123.com') {
             if (credentials.password === 'grax2650') {
               resolve({
@@ -227,18 +225,6 @@ export const api = {
             }
             return;
           }
-
-          // Simulate specific errors for testing purposes
-          if (credentials.email === 'error@test.com') {
-            reject(new Error('Invalid email or password. Please try again.'));
-            return;
-          }
-          if (credentials.email === 'network@test.com') {
-             reject(new Error('Network connection failed. Please check your internet.'));
-             return;
-          }
-          
-          // Regular User Login
           resolve({
             id: 'u-123',
             name: 'Demo User',
@@ -263,14 +249,8 @@ export const api = {
 
   register: async (userData: any): Promise<User> => {
     if (USE_MOCK_DATA) {
-       return new Promise((resolve, reject) => {
+       return new Promise((resolve) => {
         setTimeout(() => {
-          // Simulate specific error for existing user
-          if (userData.email === 'exist@test.com') {
-            reject(new Error('This email address is already registered.'));
-            return;
-          }
-
           resolve({
             id: 'u-' + Date.now(),
             name: userData.name,

@@ -1,6 +1,5 @@
 
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
   DollarSign, Calendar, TrendingUp, LayoutGrid, Video, 
@@ -9,7 +8,8 @@ import {
   Save, X, Layers, Clock, User as UserIcon, LogOut, CheckCircle, Square, CheckSquare,
   Menu, MessageSquare, AlertCircle, Lock, Loader2, Phone, Mail, FileText,
   Smartphone, History, ArrowUpRight, ArrowDownLeft, MoreVertical,
-  Activity, List, Send, Filter, Image as ImageIcon, PlayCircle, MonitorPlay
+  Activity, List, Send, Filter, Image as ImageIcon, PlayCircle, MonitorPlay,
+  ArrowLeft, Paperclip, Smile, Landmark, Wallet
 } from 'lucide-react';
 import { ServiceUploadForm } from './ServiceUploadForm';
 import { User, ServiceItem, Booking, Project, ActivityLog, PortfolioItem } from '../types';
@@ -38,6 +38,26 @@ interface Transaction {
   date: string;
   status: 'Completed' | 'Pending' | 'Failed';
   method?: string;
+}
+
+interface ChatConversation {
+    id: number;
+    name: string;
+    avatar: string;
+    color: string;
+    email?: string;
+    phone?: string;
+    project?: string;
+    status: 'online' | 'offline' | 'busy';
+    lastMessage: string;
+    time: string;
+    unread: number;
+    history: {
+        id: string;
+        sender: 'admin' | 'client';
+        text: string;
+        time: string;
+    }[];
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, onLogout }) => {
@@ -78,6 +98,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
   const [activityNote, setActivityNote] = useState('');
 
   // Finance State
+  const [availableBalance, setAvailableBalance] = useState(145000);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawProvider, setWithdrawProvider] = useState<'airtel' | 'tnm' | 'bank'>('airtel');
+  const [withdrawAccount, setWithdrawAccount] = useState('');
+  const [isProcessingWithdraw, setIsProcessingWithdraw] = useState(false);
+
   const [invoices, setInvoices] = useState<Invoice[]>([
     { id: "INV-2023-001", client: "Mwayi Phiri", date: "Nov 15, 2023", amount: 150000, status: "Paid", method: "Airtel Money" },
     { id: "INV-2023-002", client: "Daniel Banda", date: "Nov 20, 2023", amount: 85000, status: "Pending", method: "TNM Mpamba" },
@@ -89,20 +116,129 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
     { id: "TRX-997", type: "Debit", description: "Equipment Rental", amount: 25000, date: "Nov 12, 2023", status: "Completed", method: "Bank Transfer" },
   ]);
 
-  // Withdrawal Modal State
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawMethod, setWithdrawMethod] = useState<'airtel' | 'tnm'>('airtel');
-  const [withdrawPhone, setWithdrawPhone] = useState('');
-  const [withdrawName, setWithdrawName] = useState('');
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
-
-  // Messages State
-  const [messages, setMessages] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', subject: 'Wedding Quote', message: 'Hi, I need a quote for my wedding in December. We will have around 200 guests.', date: '2h ago', read: false },
-    { id: 2, name: 'Alice Smith', email: 'alice@company.com', subject: 'Corporate Video', message: 'Do you do drone shots for real estate? We have a new complex opening soon.', date: '1d ago', read: true },
-    { id: 3, name: 'Robert Brown', email: 'robert@gmail.com', subject: 'Music Video', message: 'Looking for a director for my new Afro-pop song. Budget is flexible.', date: '2d ago', read: false },
+  // Messages State (Upgraded)
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [chatSearch, setChatSearch] = useState('');
+  const [chatMessageInput, setChatMessageInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  const [chatConversations, setChatConversations] = useState<ChatConversation[]>([
+     {
+        id: 1,
+        name: 'TechMalawi',
+        avatar: 'T',
+        color: 'bg-blue-600',
+        phone: '265999123456',
+        project: 'Product Launch Ad',
+        status: 'online',
+        lastMessage: 'Looks great! Can we change the background music?',
+        time: 'Nov 25',
+        unread: 1,
+        history: [
+            { id: '1', sender: 'admin', text: 'Here is the first draft of the launch ad.', time: '10:00 AM' },
+            { id: '2', sender: 'client', text: 'Looks great! Can we change the background music?', time: '10:30 AM' }
+        ]
+     },
+     {
+        id: 2,
+        name: 'John Doe',
+        avatar: 'J',
+        color: 'bg-indigo-600',
+        email: 'john@example.com',
+        project: 'Wedding Quote',
+        status: 'offline',
+        lastMessage: 'Hi, I need a quote for my wedding in December.',
+        time: '2h ago',
+        unread: 2,
+        history: [
+            { id: '1', sender: 'client', text: 'Hi, I need a quote for my wedding in December. We will have around 200 guests.', time: '2:00 PM' }
+        ]
+     },
+     {
+        id: 3,
+        name: 'Alice Smith',
+        avatar: 'A',
+        color: 'bg-pink-600',
+        email: 'alice@company.com',
+        project: 'Corporate Video',
+        status: 'online',
+        lastMessage: 'Do you do drone shots for real estate?',
+        time: '1d ago',
+        unread: 0,
+        history: [
+             { id: '1', sender: 'client', text: 'Do you do drone shots for real estate? We have a new complex opening soon.', time: 'Yesterday' },
+             { id: '2', sender: 'admin', text: 'Yes, we specialize in drone cinematography. I can send our portfolio.', time: 'Yesterday' }
+        ]
+     },
+     {
+        id: 4,
+        name: 'Robert Brown',
+        avatar: 'R',
+        color: 'bg-orange-600',
+        email: 'robert@gmail.com',
+        project: 'Music Video',
+        status: 'busy',
+        lastMessage: 'Looking for a director for my new Afro-pop song.',
+        time: '2d ago',
+        unread: 0,
+        history: [
+            { id: '1', sender: 'client', text: 'Looking for a director for my new Afro-pop song. Budget is flexible.', time: 'Mon' }
+        ]
+     }
   ]);
+
+  const activeChat = useMemo(() => chatConversations.find(c => c.id === activeConversationId), [chatConversations, activeConversationId]);
+  
+  useEffect(() => {
+     if(activeChat && chatEndRef.current) {
+        chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+     }
+  }, [activeChat?.history]);
+
+  const handleSendMessage = (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (!chatMessageInput.trim() || !activeConversationId) return;
+      
+      const newMsg = {
+          id: `m-${Date.now()}`,
+          sender: 'admin' as const,
+          text: chatMessageInput,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setChatConversations(prev => prev.map(c => {
+          if (c.id === activeConversationId) {
+              return {
+                  ...c,
+                  history: [...c.history, newMsg],
+                  lastMessage: chatMessageInput,
+                  time: 'Just now'
+              };
+          }
+          return c;
+      }));
+      setChatMessageInput('');
+      
+      // Simulate reply
+      setTimeout(() => {
+          setChatConversations(prev => prev.map(c => {
+              if (c.id === activeConversationId) {
+                  return {
+                      ...c,
+                      history: [...c.history, {
+                          id: `m-r-${Date.now()}`,
+                          sender: 'client',
+                          text: 'Thanks for the update!',
+                          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      }],
+                      lastMessage: 'Thanks for the update!',
+                      time: 'Just now'
+                  };
+              }
+              return c;
+          }));
+      }, 3000);
+  };
 
   // --- ANALYTICS ---
   const monthlyRevenueData = useMemo(() => [
@@ -150,6 +286,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
     }
   };
 
+  const handleWithdrawSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const amount = parseInt(withdrawAmount);
+      if (!amount || amount <= 0) return alert("Please enter a valid amount");
+      if (amount > availableBalance) return alert("Insufficient balance");
+      if (!withdrawAccount.trim()) return alert("Please enter account details");
+
+      setIsProcessingWithdraw(true);
+      
+      // Simulate API
+      setTimeout(() => {
+          const providerName = withdrawProvider === 'airtel' ? 'Airtel Money' : withdrawProvider === 'tnm' ? 'TNM Mpamba' : 'Bank Transfer';
+          const newTx: Transaction = {
+              id: `WTH-${Date.now().toString().slice(-6)}`,
+              type: 'Debit',
+              description: `Withdrawal to ${providerName}`,
+              amount: amount,
+              date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              status: 'Completed',
+              method: providerName
+          };
+          
+          setTransactions([newTx, ...transactions]);
+          setAvailableBalance(prev => prev - amount);
+          setIsProcessingWithdraw(false);
+          setShowWithdrawModal(false);
+          setWithdrawAmount('');
+          setWithdrawAccount('');
+          alert(`Successfully withdrew MK ${amount.toLocaleString()} to ${providerName} (${withdrawAccount})`);
+      }, 2000);
+  };
+
   // Portfolio Actions
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -191,35 +359,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
           await api.deletePortfolioItem(id);
           setPortfolioItems(prev => prev.filter(i => i.id !== id));
       }
-  };
-
-  const handleWithdrawFunds = () => {
-    if (!withdrawAmount || !withdrawPhone || !withdrawName) return;
-    setIsWithdrawing(true);
-    
-    // Simulate processing
-    setTimeout(() => {
-      setIsWithdrawing(false);
-      setShowWithdrawModal(false);
-      
-      const amount = parseFloat(withdrawAmount);
-      const newTxn: Transaction = {
-          id: `TRX-${Math.floor(Math.random() * 10000)}`,
-          type: 'Debit',
-          description: `Withdrawal to ${withdrawName}`,
-          amount: amount,
-          date: new Date().toLocaleDateString(),
-          status: 'Pending',
-          method: withdrawMethod === 'airtel' ? 'Airtel Money' : 'TNM Mpamba'
-      };
-      
-      setTransactions(prev => [newTxn, ...prev]);
-      setWithdrawAmount('');
-      setWithdrawPhone('');
-      setWithdrawName('');
-      
-      alert('Withdrawal request initiated successfully! Funds will reflect shortly.');
-    }, 2000);
   };
 
   const handleUpdateInvoiceStatus = (id: string, newStatus: Invoice['status']) => {
@@ -379,6 +518,184 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
 
   const renderContent = () => {
     switch(activeTab) {
+      case 'messages':
+        return (
+           <div className="h-[calc(100vh-140px)] w-full max-w-6xl mx-auto flex flex-col md:flex-row bg-[#1e293b] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl animate-fade-in relative">
+              {/* Sidebar Contact List */}
+              <div className={`w-full md:w-80 border-r border-gray-700 flex flex-col bg-[#1e293b] absolute md:relative inset-0 z-20 transition-transform duration-300 ${activeConversationId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+                  {/* Search Header */}
+                  <div className="p-4 border-b border-gray-700 bg-[#1e293b] z-10">
+                      <h2 className="text-xl font-bold text-white mb-4">Messages</h2>
+                      <a 
+                        href="https://web.whatsapp.com/" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="bg-green-600/10 border border-green-500/20 rounded-xl p-3 mb-4 flex items-center justify-between cursor-pointer hover:bg-green-600/20 transition-colors group"
+                      >
+                          <div className="flex items-center gap-3">
+                              <div className="bg-green-500/20 p-2 rounded-lg"><MessageSquare className="h-5 w-5 text-green-500" /></div>
+                              <div>
+                                  <h3 className="text-sm font-bold text-white">WhatsApp Direct</h3>
+                                  <p className="text-gray-400 text-[10px]">Connect instantly via Web</p>
+                              </div>
+                          </div>
+                          <ArrowUpRight className="h-4 w-4 text-green-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                      </a>
+                      <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <input 
+                              type="text" 
+                              value={chatSearch}
+                              onChange={(e) => setChatSearch(e.target.value)}
+                              placeholder="Search chats..." 
+                              className="w-full bg-[#0f172a] text-white pl-9 pr-4 py-2.5 rounded-lg border border-gray-700 focus:border-blue-500 outline-none text-sm" 
+                          />
+                      </div>
+                  </div>
+                  
+                  {/* List */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      {chatConversations
+                        .filter(c => c.name.toLowerCase().includes(chatSearch.toLowerCase()) || c.project?.toLowerCase().includes(chatSearch.toLowerCase()))
+                        .map(chat => (
+                          <div 
+                              key={chat.id} 
+                              onClick={() => setActiveConversationId(chat.id)}
+                              className={`p-4 border-b border-gray-700/50 cursor-pointer hover:bg-white/5 transition-colors ${activeConversationId === chat.id ? 'bg-blue-600/10 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}`}
+                          >
+                              <div className="flex justify-between items-start mb-1">
+                                  <div className="flex items-center gap-3">
+                                      <div className={`w-10 h-10 rounded-full ${chat.color} flex items-center justify-center text-white font-bold relative`}>
+                                          {chat.avatar}
+                                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1e293b] ${chat.status === 'online' ? 'bg-green-500' : chat.status === 'busy' ? 'bg-red-500' : 'bg-gray-500'}`}></div>
+                                      </div>
+                                      <div>
+                                          <h4 className={`text-white text-sm ${chat.unread > 0 ? 'font-bold' : 'font-medium'}`}>{chat.name}</h4>
+                                          {chat.project && <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">{chat.project}</span>}
+                                      </div>
+                                  </div>
+                                  <div className="text-right">
+                                      <span className="text-[10px] text-gray-500 block">{chat.time}</span>
+                                      {chat.unread > 0 && <span className="inline-block bg-blue-600 text-white text-[10px] font-bold px-1.5 rounded-full min-w-[18px] text-center mt-1">{chat.unread}</span>}
+                                  </div>
+                              </div>
+                              <p className={`text-xs mt-2 truncate ${chat.unread > 0 ? 'text-gray-300 font-medium' : 'text-gray-500'}`}>{chat.lastMessage}</p>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+
+              {/* Chat Window */}
+              <div className={`flex-1 flex flex-col bg-[#0f172a] absolute md:relative inset-0 z-10 transition-transform duration-300 ${activeConversationId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+                  {activeChat ? (
+                      <>
+                          {/* Chat Header */}
+                          <div className="p-4 border-b border-gray-700 bg-[#1e293b] flex justify-between items-center shadow-md z-10">
+                              <div className="flex items-center gap-3">
+                                  <button onClick={() => setActiveConversationId(null)} className="md:hidden text-gray-400 hover:text-white p-1 -ml-2">
+                                      <ArrowLeft className="h-6 w-6" />
+                                  </button>
+                                  <div className={`w-10 h-10 rounded-full ${activeChat.color} flex items-center justify-center text-white font-bold`}>
+                                      {activeChat.avatar}
+                                  </div>
+                                  <div>
+                                      <h3 className="text-white font-bold text-sm md:text-base">{activeChat.name}</h3>
+                                      <div className="flex items-center gap-2">
+                                          <span className={`w-2 h-2 rounded-full ${activeChat.status === 'online' ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                                          <span className="text-gray-400 text-xs capitalize">{activeChat.status}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div className="flex gap-2">
+                                  {activeChat.phone && (
+                                    <a 
+                                      href={`https://wa.me/${activeChat.phone}`} 
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      className="p-2 text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-lg transition-colors flex items-center justify-center" 
+                                      title="Open WhatsApp"
+                                    >
+                                        <MessageSquare className="h-5 w-5" />
+                                    </a>
+                                  )}
+                                  {activeChat.phone && (
+                                    <a 
+                                      href={`tel:${activeChat.phone}`}
+                                      className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors flex items-center justify-center" 
+                                      title="Call"
+                                    >
+                                        <Phone className="h-5 w-5" />
+                                    </a>
+                                  )}
+                                  <button className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                      <MoreVertical className="h-5 w-5" />
+                                  </button>
+                              </div>
+                          </div>
+
+                          {/* Messages Area */}
+                          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0f172a] custom-scrollbar">
+                              <div className="text-center my-4">
+                                  <span className="bg-gray-800 text-gray-500 text-[10px] px-3 py-1 rounded-full uppercase tracking-wider">Start of conversation</span>
+                              </div>
+                              {activeChat.history.map((msg) => (
+                                  <div key={msg.id} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                      <div className={`max-w-[85%] md:max-w-[70%] ${msg.sender === 'admin' ? 'items-end' : 'items-start'} flex flex-col`}>
+                                          <div className={`p-3.5 text-sm rounded-2xl ${
+                                              msg.sender === 'admin' 
+                                              ? 'bg-blue-600 text-white rounded-br-sm' 
+                                              : 'bg-[#1e293b] text-gray-200 border border-gray-700 rounded-bl-sm'
+                                          }`}>
+                                              {msg.text}
+                                          </div>
+                                          <span className="text-[10px] text-gray-500 mt-1 px-1">{msg.time}</span>
+                                      </div>
+                                  </div>
+                              ))}
+                              <div ref={chatEndRef} />
+                          </div>
+
+                          {/* Input Area */}
+                          <div className="p-4 bg-[#1e293b] border-t border-gray-700">
+                              <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+                                  <button type="button" className="p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+                                      <Paperclip className="h-5 w-5" />
+                                  </button>
+                                  <div className="flex-1 bg-[#0f172a] rounded-xl border border-gray-700 flex items-center px-4 py-2 focus-within:border-blue-500 transition-colors">
+                                      <input 
+                                          type="text" 
+                                          value={chatMessageInput}
+                                          onChange={(e) => setChatMessageInput(e.target.value)}
+                                          placeholder="Type a message..." 
+                                          className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-sm py-1"
+                                      />
+                                      <button type="button" className="text-gray-400 hover:text-white ml-2">
+                                          <Smile className="h-5 w-5" />
+                                      </button>
+                                  </div>
+                                  <button 
+                                      type="submit" 
+                                      disabled={!chatMessageInput.trim()}
+                                      className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                  >
+                                      <Send className="h-5 w-5" />
+                                  </button>
+                              </form>
+                          </div>
+                      </>
+                  ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center">
+                          <div className="w-20 h-20 bg-[#1e293b] rounded-full flex items-center justify-center mb-6 animate-pulse">
+                              <MessageSquare className="h-10 w-10 text-gray-600" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-300 mb-2">Your Messages</h3>
+                          <p className="max-w-xs text-sm">Select a conversation from the list to start chatting with your clients.</p>
+                      </div>
+                  )}
+              </div>
+           </div>
+        );
+
       case 'portfolio':
         return (
           <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
@@ -493,648 +810,790 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogin, o
       case 'finance':
         return (
           <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-                 <div>
-                    <h2 className="text-2xl font-bold text-white">Finance Control</h2>
-                    <p className="text-gray-400 text-sm">Manage invoices, track revenue, and withdraw funds.</p>
-                 </div>
-                 <div className="flex gap-2">
-                    <button onClick={() => setShowWithdrawModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/30">
-                        <DollarSign className="h-4 w-4" /> Withdraw Funds
-                    </button>
-                    <button className="bg-[#1e293b] p-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white"><Download className="h-5 w-5"/></button>
-                 </div>
+             <div className="flex justify-between items-center mb-6">
+                <div>
+                   <h2 className="text-2xl font-bold text-white">Financial Performance</h2>
+                   <p className="text-gray-400 text-sm">Revenue tracking and wallet withdrawals.</p>
+                </div>
+                <div className="flex gap-2">
+                   <button className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-white/10">
+                      <Download className="h-4 w-4" /> Report
+                   </button>
+                </div>
              </div>
 
-             {/* Stats Cards */}
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-[#1e293b] p-6 rounded-2xl border-l-4 border-emerald-500 relative shadow-lg">
-                   <div className="flex justify-between items-start">
-                      <div>
-                         <p className="text-gray-400 text-xs font-bold uppercase mb-2">Total Revenue</p>
-                         <h3 className="text-3xl font-bold text-white mb-2">MK 190,000</h3>
-                         <p className="text-emerald-500 text-xs flex items-center gap-1"><TrendingUp className="h-3 w-3" /> +12% this month</p>
-                      </div>
-                      <div className="bg-emerald-500/10 p-3 rounded-lg"><DollarSign className="h-6 w-6 text-emerald-500" /></div>
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2 bg-gradient-to-br from-blue-900 to-slate-900 p-6 rounded-xl border border-blue-500/30 shadow-lg relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <Wallet className="w-32 h-32 text-white" />
+                   </div>
+                   <p className="text-blue-200 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Available Wallet Balance</p>
+                   <h3 className="text-4xl font-heading font-bold text-white mb-6 relative z-10">MK {availableBalance.toLocaleString()}</h3>
+                   <div className="flex gap-3 relative z-10">
+                      <button 
+                        onClick={() => setShowWithdrawModal(true)}
+                        className="bg-brand-primary hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/40 transition-all"
+                      >
+                         <ArrowUpRight className="h-4 w-4" /> Withdraw Funds
+                      </button>
                    </div>
                 </div>
-                <div className="bg-[#1e293b] p-6 rounded-2xl border-l-4 border-yellow-500 relative shadow-lg">
-                   <div className="flex justify-between items-start">
-                      <div>
-                         <p className="text-gray-400 text-xs font-bold uppercase mb-2">Pending Invoices</p>
-                         <h3 className="text-3xl font-bold text-white mb-2">MK 85,000</h3>
-                         <p className="text-yellow-500 text-xs flex items-center gap-1"><Clock className="h-3 w-3" /> {invoices.filter(i => i.status === 'Pending').length} Waiting</p>
-                      </div>
-                      <div className="bg-yellow-500/10 p-3 rounded-lg"><CreditCard className="h-6 w-6 text-yellow-500" /></div>
-                   </div>
+
+                <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 flex flex-col justify-center">
+                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Pending Invoices</p>
+                   <h3 className="text-2xl font-heading font-bold text-white">MK 85,000</h3>
+                   <span className="text-yellow-500 text-xs flex items-center gap-1 mt-1 font-bold"><Clock className="h-3 w-3" /> 2 Waiting payment</span>
                 </div>
-                <div className="bg-[#1e293b] p-6 rounded-2xl border-l-4 border-blue-500 relative shadow-lg">
-                   <div className="flex justify-between items-start">
-                      <div>
-                         <p className="text-gray-400 text-xs font-bold uppercase mb-2">Net Profit</p>
-                         <h3 className="text-3xl font-bold text-white mb-2">MK 165,000</h3>
-                         <p className="text-blue-500 text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3" /> After Expenses</p>
-                      </div>
-                      <div className="bg-blue-500/10 p-3 rounded-lg"><Briefcase className="h-6 w-6 text-blue-500" /></div>
-                   </div>
+                
+                <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 flex flex-col justify-center">
+                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Total Revenue</p>
+                   <h3 className="text-2xl font-heading font-bold text-white">MK 190,000</h3>
+                   <span className="text-green-500 text-xs flex items-center gap-1 mt-1 font-bold"><TrendingUp className="h-3 w-3" /> +12% vs last month</span>
                 </div>
              </div>
 
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Invoices Section */}
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2"><FileText className="h-5 w-5 text-gray-400" /> Recent Invoices</h3>
+                <div className="lg:col-span-2 bg-[#1e293b] rounded-xl border border-gray-700 p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-white">Transaction History</h3>
                     </div>
-                    {/* Responsive Table Wrapper */}
-                    <div className="bg-[#1e293b] rounded-xl border border-gray-700 overflow-hidden shadow-lg overflow-x-auto">
-                         <table className="w-full text-left text-sm min-w-[600px]">
-                             <thead className="bg-[#0f172a] text-gray-400 uppercase text-xs font-bold">
-                                 <tr><th className="p-4">Client</th><th className="p-4">Amount</th><th className="p-4">Status</th><th className="p-4">Action</th></tr>
-                             </thead>
-                             <tbody className="divide-y divide-gray-700">
-                                 {invoices.map((inv) => (
-                                      <tr key={inv.id} className="hover:bg-gray-800/50">
-                                         <td className="p-4">
-                                            <p className="font-medium text-white">{inv.client}</p>
-                                            <p className="text-xs text-gray-500">{inv.id}</p>
-                                         </td>
-                                         <td className="p-4 text-white font-bold">MK {inv.amount.toLocaleString()}</td>
-                                         <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${inv.status === 'Paid' ? 'bg-green-500/10 text-green-400 border-green-500/20' : inv.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>{inv.status}</span></td>
-                                         <td className="p-4">
-                                             <div className="relative group/action">
-                                                 <button className="text-gray-400 hover:text-white"><MoreVertical className="h-4 w-4" /></button>
-                                                 <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 hidden group-hover/action:block z-20 min-w-[120px]">
-                                                     {inv.status !== 'Paid' && <button onClick={() => handleUpdateInvoiceStatus(inv.id, 'Paid')} className="w-full text-left px-4 py-2 text-xs text-green-400 hover:bg-white/5">Mark Paid</button>}
-                                                     {inv.status !== 'Pending' && <button onClick={() => handleUpdateInvoiceStatus(inv.id, 'Pending')} className="w-full text-left px-4 py-2 text-xs text-yellow-400 hover:bg-white/5">Mark Pending</button>}
-                                                     <button className="w-full text-left px-4 py-2 text-xs text-gray-400 hover:bg-white/5">Send PDF</button>
-                                                 </div>
-                                             </div>
-                                         </td>
-                                      </tr>
-                                 ))}
-                             </tbody>
-                         </table>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-[#0f172a] text-gray-400 uppercase text-xs font-bold">
+                                <tr>
+                                    <th className="p-3 rounded-l-lg">Type</th>
+                                    <th className="p-3">Description</th>
+                                    <th className="p-3">Date</th>
+                                    <th className="p-3">Amount</th>
+                                    <th className="p-3 rounded-r-lg">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700">
+                                {transactions.map((txn) => (
+                                    <tr key={txn.id} className="hover:bg-gray-800/50">
+                                        <td className="p-3">
+                                            <div className={`flex items-center gap-2 font-bold ${txn.type === 'Credit' ? 'text-green-500' : 'text-red-500'}`}>
+                                                {txn.type === 'Credit' ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                                                {txn.type}
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <p className="font-medium text-white">{txn.description}</p>
+                                            <p className="text-xs text-gray-500">{txn.method}</p>
+                                        </td>
+                                        <td className="p-3 text-gray-400">{txn.date}</td>
+                                        <td className={`p-3 font-mono font-bold ${txn.type === 'Credit' ? 'text-green-400' : 'text-white'}`}>
+                                            MK {txn.amount.toLocaleString()}
+                                        </td>
+                                        <td className="p-3">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${
+                                                txn.status === 'Completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                                                txn.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 
+                                                'bg-red-500/10 text-red-400 border-red-500/20'
+                                            }`}>
+                                                {txn.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                {/* Transaction History Section */}
-                <div className="space-y-4">
-                     <h3 className="text-lg font-bold text-white flex items-center gap-2"><History className="h-5 w-5 text-gray-400" /> Recent Transactions</h3>
-                     <div className="bg-[#1e293b] rounded-xl border border-gray-700 p-4 shadow-lg space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
-                         {transactions.length > 0 ? transactions.map((txn) => (
-                             <div key={txn.id} className="flex justify-between items-center p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50">
-                                 <div className="flex items-center gap-3">
-                                     <div className={`p-2 rounded-full ${txn.type === 'Credit' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                                         {txn.type === 'Credit' ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-                                     </div>
-                                     <div>
-                                         <p className="text-xs font-bold text-white truncate max-w-[120px]">{txn.description}</p>
-                                         <p className="text-[10px] text-gray-500">{txn.date} • {txn.method}</p>
-                                     </div>
-                                 </div>
-                                 <div className="text-right">
-                                     <p className={`text-sm font-bold ${txn.type === 'Credit' ? 'text-green-400' : 'text-white'}`}>
-                                         {txn.type === 'Credit' ? '+' : '-'} MK {txn.amount.toLocaleString()}
-                                     </p>
-                                     <span className="text-[10px] text-gray-500">{txn.status}</span>
-                                 </div>
-                             </div>
-                         )) : (
-                             <div className="text-center py-8 text-gray-500 text-sm">No recent transactions</div>
-                         )}
-                     </div>
+                <div className="bg-[#1e293b] rounded-xl border border-gray-700 p-6">
+                    <h3 className="text-lg font-bold text-white mb-4">Recent Invoices</h3>
+                    <div className="space-y-4">
+                        {invoices.slice(0, 4).map((inv) => (
+                            <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-[#0f172a] border border-gray-700">
+                                <div>
+                                    <p className="text-white text-xs font-bold">{inv.client}</p>
+                                    <p className="text-[10px] text-gray-500">{inv.id}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-white text-xs font-bold">MK {inv.amount.toLocaleString()}</p>
+                                    <span className={`text-[10px] ${inv.status === 'Paid' ? 'text-green-500' : inv.status === 'Pending' ? 'text-yellow-500' : 'text-red-500'}`}>
+                                        {inv.status}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
              </div>
 
-             {/* WITHDRAWAL MODAL */}
+             {/* Withdraw Modal */}
              {showWithdrawModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                   <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl animate-scale-in overflow-hidden">
-                      <div className="p-6 bg-[#1e293b] border-b border-gray-700">
-                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                             <Smartphone className="h-5 w-5 text-emerald-500" /> Mobile Money Withdrawal
-                          </h3>
-                          <p className="text-gray-400 text-xs mt-1">Transfer funds instantly to your registered wallet.</p>
+                   <div className="bg-[#1e293b] w-full max-w-md rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+                      <div className="p-6 border-b border-gray-700 bg-gray-900/50 flex justify-between items-center">
+                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Wallet className="h-5 w-5 text-brand-primary" /> Withdraw Funds
+                         </h3>
+                         <button onClick={() => setShowWithdrawModal(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5"/></button>
                       </div>
                       
-                      <div className="p-6 space-y-6">
-                         {/* Network Selection */}
-                         <div>
-                             <label className="text-xs text-gray-400 uppercase font-bold block mb-3">Select Network</label>
-                             <div className="grid grid-cols-2 gap-4">
-                                 <button 
-                                    onClick={() => setWithdrawMethod('airtel')}
-                                    className={`relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${withdrawMethod === 'airtel' ? 'border-red-500 bg-red-500/10' : 'border-gray-700 bg-gray-800 hover:border-red-500/50'}`}
-                                 >
-                                     <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-xs">AM</div>
-                                     <span className={`text-sm font-bold ${withdrawMethod === 'airtel' ? 'text-white' : 'text-gray-400'}`}>Airtel Money</span>
-                                     {withdrawMethod === 'airtel' && <div className="absolute top-2 right-2 text-red-500"><CheckCircle className="h-4 w-4" /></div>}
-                                 </button>
-                                 <button 
-                                    onClick={() => setWithdrawMethod('tnm')}
-                                    className={`relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${withdrawMethod === 'tnm' ? 'border-green-500 bg-green-500/10' : 'border-gray-700 bg-gray-800 hover:border-green-500/50'}`}
-                                 >
-                                     <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-xs">TM</div>
-                                     <span className={`text-sm font-bold ${withdrawMethod === 'tnm' ? 'text-white' : 'text-gray-400'}`}>TNM Mpamba</span>
-                                     {withdrawMethod === 'tnm' && <div className="absolute top-2 right-2 text-green-500"><CheckCircle className="h-4 w-4" /></div>}
-                                 </button>
-                             </div>
+                      <div className="p-6">
+                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6 text-center">
+                            <p className="text-blue-300 text-xs uppercase font-bold mb-1">Available to Withdraw</p>
+                            <h4 className="text-2xl font-bold text-white">MK {availableBalance.toLocaleString()}</h4>
                          </div>
 
-                         {/* Details */}
-                         <div className="space-y-4">
-                             <div>
-                                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Registered Name</label>
-                                <div className="relative">
-                                   <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
-                                   <input type="text" value={withdrawName} onChange={(e) => setWithdrawName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-3 py-3 text-white focus:border-blue-500 outline-none" placeholder="e.g. John Doe"/>
-                                </div>
-                             </div>
-                             <div>
-                                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Phone Number</label>
-                                <div className="relative">
-                                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
-                                   <input type="tel" value={withdrawPhone} onChange={(e) => setWithdrawPhone(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-3 py-3 text-white focus:border-blue-500 outline-none" placeholder="e.g. +265 99..."/>
-                                </div>
-                             </div>
-                             <div>
-                                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">Amount (MK)</label>
-                                <div className="relative">
-                                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
-                                   <input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-3 py-3 text-white focus:border-blue-500 outline-none font-bold text-lg" placeholder="0.00"/>
-                                </div>
-                                <div className="flex justify-between text-[10px] text-gray-500 mt-1 px-1">
-                                    <span>Fee: MK 500</span>
-                                    <span>Balance: MK 190,000</span>
-                                </div>
-                             </div>
-                         </div>
+                         <form onSubmit={handleWithdrawSubmit} className="space-y-4">
+                            <div>
+                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Withdraw To</label>
+                               <div className="grid grid-cols-3 gap-2">
+                                  <button 
+                                    type="button"
+                                    onClick={() => setWithdrawProvider('airtel')}
+                                    className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-all ${withdrawProvider === 'airtel' ? 'bg-red-600/20 border-red-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`}
+                                  >
+                                     <Smartphone className={`h-5 w-5 ${withdrawProvider === 'airtel' ? 'text-red-500' : ''}`} />
+                                     <span className="text-[10px] font-bold">Airtel Money</span>
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => setWithdrawProvider('tnm')}
+                                    className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-all ${withdrawProvider === 'tnm' ? 'bg-green-600/20 border-green-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`}
+                                  >
+                                     <Smartphone className={`h-5 w-5 ${withdrawProvider === 'tnm' ? 'text-green-500' : ''}`} />
+                                     <span className="text-[10px] font-bold">TNM Mpamba</span>
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => setWithdrawProvider('bank')}
+                                    className={`p-3 rounded-lg border flex flex-col items-center gap-2 transition-all ${withdrawProvider === 'bank' ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`}
+                                  >
+                                     <Landmark className={`h-5 w-5 ${withdrawProvider === 'bank' ? 'text-blue-500' : ''}`} />
+                                     <span className="text-[10px] font-bold">Bank Transfer</span>
+                                  </button>
+                               </div>
+                            </div>
 
-                         <div className="flex gap-3 pt-2">
-                            <button onClick={() => setShowWithdrawModal(false)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors">Cancel</button>
-                            <button onClick={handleWithdrawFunds} disabled={!withdrawAmount || !withdrawPhone || isWithdrawing} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                                {isWithdrawing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirm Withdraw'}
+                            <div>
+                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                  {withdrawProvider === 'bank' ? 'Account Number' : 'Phone Number'}
+                               </label>
+                               <input 
+                                  type="text" 
+                                  value={withdrawAccount}
+                                  onChange={(e) => setWithdrawAccount(e.target.value)}
+                                  className="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white focus:border-brand-primary outline-none"
+                                  placeholder={withdrawProvider === 'bank' ? 'Enter Account Number' : 'e.g. 099...'}
+                                  required
+                               />
+                            </div>
+
+                            <div>
+                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Amount (MK)</label>
+                               <div className="relative">
+                                  <DollarSign className="absolute left-3 top-3 text-gray-500 h-4 w-4" />
+                                  <input 
+                                     type="number" 
+                                     value={withdrawAmount}
+                                     onChange={(e) => setWithdrawAmount(e.target.value)}
+                                     className="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 pl-9 text-white focus:border-brand-primary outline-none"
+                                     placeholder="0.00"
+                                     min="500"
+                                     required
+                                  />
+                               </div>
+                            </div>
+
+                            <button 
+                               type="submit" 
+                               disabled={isProcessingWithdraw}
+                               className="w-full py-3 bg-brand-primary hover:bg-blue-600 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+                            >
+                               {isProcessingWithdraw ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUpRight className="h-5 w-5" />}
+                               {isProcessingWithdraw ? 'Processing...' : 'Confirm Withdrawal'}
                             </button>
-                         </div>
+                         </form>
                       </div>
                    </div>
                 </div>
-             )}
-          </div>
-        );
-
-      case 'messages':
-        return (
-           <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-white mb-2">Client Messages</h2>
-              
-              <div className="flex gap-3 mb-6">
-                  <div className="relative flex-1">
-                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      <input type="text" placeholder="Search..." className="w-full bg-[#1e293b] text-white pl-12 pr-4 py-3 rounded-2xl border border-gray-700 focus:border-blue-500 outline-none" />
-                  </div>
-                  <button className="bg-[#1e293b] p-3 rounded-2xl border border-gray-700 hover:bg-gray-700 text-gray-300"><Bell className="h-6 w-6" /></button>
-              </div>
-
-              <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-lg">
-                  <div className="flex items-start gap-4">
-                      <div className="bg-green-500/20 p-3 rounded-xl"><MessageSquare className="h-6 w-6 text-green-500" /></div>
-                      <div>
-                          <h3 className="text-lg font-bold text-white">WhatsApp Direct</h3>
-                          <p className="text-gray-400 text-sm mt-1">Connect with clients instantly via WhatsApp Web.</p>
-                      </div>
-                  </div>
-                  <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-green-900/20 transition-all">
-                      <Plus className="h-4 w-4" /> New Chat
-                  </button>
-              </div>
-
-              <div className="space-y-3">
-                   <div className="bg-[#1e293b] p-5 rounded-2xl border border-gray-700 hover:border-blue-500/50 transition-colors cursor-pointer group relative overflow-hidden shadow-md">
-                      <div className="absolute top-4 right-4 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1e293b]"></div>
-                      <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg">T</div>
-                          <div>
-                              <h4 className="text-white font-bold text-lg">TechMalawi</h4>
-                              <p className="text-gray-400 text-sm">265999123456</p>
-                          </div>
-                      </div>
-                      <div className="mt-4 bg-[#0f172a] rounded-xl p-4 border border-gray-800">
-                          <div className="flex justify-between items-center mb-1">
-                              <span className="text-gray-500 text-xs uppercase tracking-wider font-bold">Active Project</span>
-                              <span className="text-gray-500 text-xs">Nov 25, 2023</span>
-                          </div>
-                          <p className="text-white font-medium">Product Launch Ad</p>
-                      </div>
-                   </div>
-
-                   {messages.map((msg) => (
-                      <div key={msg.id} className={`bg-[#1e293b] p-5 rounded-2xl border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer ${!msg.read ? 'border-l-4 border-l-blue-500' : ''}`}>
-                          <div className="flex justify-between items-start mb-2">
-                              <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-gray-300 font-bold">{msg.name.charAt(0)}</div>
-                                  <div>
-                                      <h4 className={`text-white text-sm ${!msg.read ? 'font-bold' : 'font-medium'}`}>{msg.name}</h4>
-                                      <p className="text-gray-500 text-xs">{msg.subject}</p>
-                                  </div>
-                              </div>
-                              <span className="text-xs text-gray-500">{msg.date}</span>
-                          </div>
-                          <p className="text-gray-400 text-sm mt-2 line-clamp-2 pl-12">{msg.message}</p>
-                      </div>
-                   ))}
-              </div>
-           </div>
-        );
-
-      case 'bookings':
-        return (
-          <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-                 <div>
-                    <h2 className="text-2xl font-bold text-white">Booking Requests</h2>
-                    <p className="text-gray-400 text-sm">Manage client appointments and orders.</p>
-                 </div>
-                 <div className="flex gap-2">
-                    <button className="bg-[#1e293b] text-white px-4 py-2 rounded-lg border border-gray-700 text-sm font-medium hover:bg-gray-700">Export CSV</button>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2"><Plus className="h-4 w-4" /> New Booking</button>
-                 </div>
-             </div>
-
-             {/* Booking Stats Row */}
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div className="bg-[#1e293b] p-4 rounded-xl border border-gray-700">
-                     <p className="text-gray-400 text-xs uppercase font-bold">Total</p>
-                     <p className="text-2xl font-bold text-white">{bookings.length}</p>
-                 </div>
-                 <div className="bg-[#1e293b] p-4 rounded-xl border border-gray-700 border-l-4 border-l-yellow-500">
-                     <p className="text-gray-400 text-xs uppercase font-bold">Pending</p>
-                     <p className="text-2xl font-bold text-white">{bookings.filter(b => b.status === 'Pending').length}</p>
-                 </div>
-                 <div className="bg-[#1e293b] p-4 rounded-xl border border-gray-700 border-l-4 border-l-green-500">
-                     <p className="text-gray-400 text-xs uppercase font-bold">Confirmed</p>
-                     <p className="text-2xl font-bold text-white">{bookings.filter(b => b.status === 'Confirmed').length}</p>
-                 </div>
-                 <div className="bg-[#1e293b] p-4 rounded-xl border border-gray-700 border-l-4 border-l-blue-500">
-                     <p className="text-gray-400 text-xs uppercase font-bold">Completed</p>
-                     <p className="text-2xl font-bold text-white">{bookings.filter(b => b.status === 'Completed').length}</p>
-                 </div>
-             </div>
-
-             {/* Bookings List */}
-             <div className="space-y-4">
-                 {bookings.map((booking) => (
-                    <div key={booking.id} className="bg-[#1e293b] border border-gray-700 rounded-xl p-5 hover:border-blue-500/30 transition-all shadow-md group">
-                        <div className="flex flex-col md:flex-row justify-between gap-4">
-                            <div className="flex items-start gap-4">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
-                                    booking.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' :
-                                    booking.status === 'Confirmed' ? 'bg-green-500/10 text-green-500' :
-                                    booking.status === 'Completed' ? 'bg-blue-500/10 text-blue-500' :
-                                    'bg-red-500/10 text-red-500'
-                                }`}>
-                                   {booking.clientName.charAt(0)}
-                                </div>
-                                <div>
-                                    <h3 className="text-white font-bold text-lg">{booking.clientName}</h3>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mt-1">
-                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {booking.date}</span>
-                                        <span className="flex items-center gap-1"><Layers className="h-3 w-3" /> {booking.serviceName || 'Service'}</span>
-                                        {booking.tierName && <span className="bg-gray-800 px-2 py-0.5 rounded text-xs text-gray-300">{booking.tierName}</span>}
-                                    </div>
-                                    {booking.notes && <p className="text-gray-500 text-xs mt-2 italic">"{booking.notes}"</p>}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-3 min-w-[140px]">
-                                <span className="text-white font-bold text-xl">MK {booking.amount.toLocaleString()}</span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${
-                                    booking.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                                    booking.status === 'Confirmed' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
-                                    booking.status === 'Completed' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                    'bg-red-500/10 text-red-500 border-red-500/20'
-                                }`}>
-                                    {booking.status}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Action Bar */}
-                        <div className="mt-4 pt-4 border-t border-gray-800 flex justify-end gap-3 opacity-80 group-hover:opacity-100 transition-opacity">
-                            {booking.status === 'Pending' && (
-                                <>
-                                    <button onClick={() => handleBookingAction(booking.id, 'cancel')} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-sm font-medium transition-colors">Decline</button>
-                                    <button onClick={() => handleBookingAction(booking.id, 'confirm')} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg shadow-green-900/20 transition-colors flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Accept & Confirm</button>
-                                </>
-                            )}
-                            {booking.status === 'Confirmed' && (
-                                <>
-                                    <button onClick={() => handleBookingAction(booking.id, 'cancel')} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-sm font-medium transition-colors">Cancel</button>
-                                    <button onClick={() => handleBookingAction(booking.id, 'complete')} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-900/20 transition-colors flex items-center gap-2"><CheckSquare className="h-4 w-4" /> Mark Completed</button>
-                                </>
-                            )}
-                            {(booking.status === 'Completed' || booking.status === 'Cancelled') && (
-                                <button className="px-4 py-2 rounded-lg bg-white/5 text-gray-500 text-sm cursor-not-allowed">Archived</button>
-                            )}
-                        </div>
-                    </div>
-                 ))}
-                 {bookings.length === 0 && <div className="text-center py-10 text-gray-500">No bookings found.</div>}
-             </div>
-          </div>
-        );
-
-      case 'projects':
-         return (
-          <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-white">Active Projects</h2>
-                    <p className="text-gray-400 text-sm">Track progress, deliverables, and activities.</p>
-                </div>
-                <div className="flex gap-2 w-full md:w-auto">
-                    <button className="bg-brand-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-colors"><Plus className="h-4 w-4" /> New Project</button>
-                </div>
-             </div>
-
-             {/* Search and Filters */}
-             <div className="flex flex-col md:flex-row gap-4 mb-6">
-                 <div className="relative flex-1">
-                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-                     <input 
-                        type="text" 
-                        placeholder="Search projects by client or title..." 
-                        value={projectSearch}
-                        onChange={(e) => setProjectSearch(e.target.value)}
-                        className="w-full bg-[#1e293b] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-white focus:border-blue-500 outline-none"
-                     />
-                 </div>
-                 <div className="relative min-w-[160px]">
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <select 
-                        value={projectStatusFilter}
-                        onChange={(e) => setProjectStatusFilter(e.target.value)}
-                        className="w-full bg-[#1e293b] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                    >
-                        <option value="All">All Status</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Editing">Editing</option>
-                        <option value="Client Review">Client Review</option>
-                        <option value="Planning">Planning</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                 </div>
-             </div>
-
-             <div className="grid grid-cols-1 gap-6">
-                {filteredProjects.length > 0 ? filteredProjects.map((project) => (
-                    <div key={project.id} className="bg-[#1e293b] border border-gray-700 rounded-xl overflow-hidden shadow-lg group hover:border-blue-500/30 transition-all">
-                        <div className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h3 className="text-xl font-bold text-white">{project.title}</h3>
-                                        <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full border border-gray-600">{project.category}</span>
-                                    </div>
-                                    <p className="text-gray-400 text-sm flex items-center gap-2"><UserIcon className="h-3 w-3" /> {project.client}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getProjectStatusColor(project.status)}`}>{project.status}</span>
-                                     <button 
-                                        onClick={() => handleDeleteProject(project.id)}
-                                        className="p-1.5 text-gray-500 hover:text-red-400 rounded-md hover:bg-white/5 transition-colors opacity-0 group-hover:opacity-100"
-                                        title="Delete Project"
-                                     >
-                                         <Trash2 className="h-4 w-4" />
-                                     </button>
-                                </div>
-                            </div>
-
-                            <div className="mb-6">
-                                <div className="flex justify-between text-xs text-gray-400 mb-2">
-                                    <span>Progress</span>
-                                    <span>{project.progress}%</span>
-                                </div>
-                                <div className="w-full bg-gray-900 rounded-full h-2 mb-4">
-                                    <div className="bg-blue-600 h-2 rounded-full transition-all duration-500" style={{ width: `${project.progress}%` }}></div>
-                                </div>
-                                <input 
-                                    type="range" 
-                                    min="0" max="100" 
-                                    value={project.progress} 
-                                    onChange={(e) => handleProjectProgress(project.id, parseInt(e.target.value))}
-                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-black/20 rounded-lg p-4 border border-white/5">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2"><UploadCloud className="h-4 w-4" /> Deliverables</h4>
-                                        <button onClick={() => handleAddDeliverable(project.id)} className="text-xs text-blue-400 hover:text-white flex items-center gap-1"><Plus className="h-3 w-3" /> Add File</button>
-                                    </div>
-                                    {project.deliverables && project.deliverables.length > 0 ? (
-                                        <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-                                            {project.deliverables.map((file, i) => (
-                                                <div key={i} className="flex justify-between items-center bg-gray-800/50 p-2 rounded text-sm group/file">
-                                                    <div className="flex items-center gap-2 overflow-hidden">
-                                                        {file.type === 'video' ? <Video className="h-4 w-4 text-blue-500" /> : <FileText className="h-4 w-4 text-gray-500" />}
-                                                        <a href={file.url} target="_blank" className="text-gray-300 hover:text-white truncate max-w-[120px]">{file.name}</a>
-                                                    </div>
-                                                    <button onClick={() => handleDeleteDeliverable(project.id, i)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover/file:opacity-100 transition-opacity"><Trash2 className="h-3 w-3" /></button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-600 text-xs italic text-center py-4">No files uploaded yet.</p>
-                                    )}
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                     <button 
-                                        onClick={() => handleOpenActivities(project)}
-                                        className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg border border-gray-700 flex flex-col items-center justify-center gap-2 transition-all group/btn"
-                                     >
-                                         <Activity className="h-6 w-6 text-blue-500 group-hover/btn:scale-110 transition-transform" />
-                                         <span className="text-xs font-bold uppercase tracking-wider">View Activities</span>
-                                     </button>
-                                     <button className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg border border-gray-700 flex flex-col items-center justify-center gap-2 transition-all group/btn">
-                                         <Mail className="h-6 w-6 text-green-500 group-hover/btn:scale-110 transition-transform" />
-                                         <span className="text-xs font-bold uppercase tracking-wider">Email Client</span>
-                                     </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-gray-800/50 p-3 border-t border-gray-700 flex justify-between items-center text-xs text-gray-500">
-                             <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due: {project.dueDate}</span>
-                             <span>{project.activities?.length || 0} activities logged</span>
-                        </div>
-                    </div>
-                )) : (
-                    <div className="text-center py-12 bg-[#1e293b] rounded-xl border border-gray-700">
-                        <Search className="h-12 w-12 text-gray-600 mx-auto mb-3" />
-                        <h3 className="text-white font-bold mb-1">No projects found</h3>
-                        <p className="text-gray-400 text-sm">Try adjusting your search or filters.</p>
-                    </div>
-                )}
-             </div>
-
-             {/* Activity Modal */}
-             {showActivityModal && currentProject && (
-                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
-                     <div className="bg-gray-900 w-full max-w-lg rounded-2xl border border-gray-700 shadow-2xl flex flex-col max-h-[80vh]">
-                         <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-[#1e293b] rounded-t-2xl">
-                             <div>
-                                 <h3 className="text-white font-bold text-lg flex items-center gap-2"><List className="h-5 w-5 text-brand-primary" /> Project Activities</h3>
-                                 <p className="text-gray-400 text-xs">{currentProject.title}</p>
-                             </div>
-                             <button onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/5"><X className="h-5 w-5" /></button>
-                         </div>
-                         
-                         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                             {currentProject.activities && currentProject.activities.length > 0 ? (
-                                 currentProject.activities.map((act) => (
-                                     <div key={act.id} className="flex gap-3 relative">
-                                         <div className="flex flex-col items-center">
-                                             <div className={`w-3 h-3 rounded-full mt-1.5 ${act.type === 'success' ? 'bg-green-500' : act.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
-                                             <div className="w-0.5 bg-gray-800 flex-1 my-1"></div>
-                                         </div>
-                                         <div className="bg-[#1e293b] p-3 rounded-xl border border-gray-700 flex-1 mb-2">
-                                             <p className="text-gray-200 text-sm mb-1">{act.text}</p>
-                                             <p className="text-gray-500 text-[10px]">{act.date}</p>
-                                         </div>
-                                     </div>
-                                 ))
-                             ) : (
-                                 <div className="text-center py-8 text-gray-500 text-sm italic">No recent activities recorded.</div>
-                             )}
-                         </div>
-
-                         <div className="p-4 bg-[#1e293b] border-t border-gray-700 rounded-b-2xl">
-                             <div className="relative">
-                                 <input 
-                                     type="text" 
-                                     value={activityNote}
-                                     onChange={(e) => setActivityNote(e.target.value)}
-                                     onKeyDown={(e) => e.key === 'Enter' && handleAddActivity()}
-                                     placeholder="Add a note or update..." 
-                                     className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-4 pr-12 py-3 text-white focus:border-brand-primary outline-none"
-                                 />
-                                 <button 
-                                     onClick={handleAddActivity}
-                                     disabled={!activityNote.trim()}
-                                     className="absolute right-2 top-1/2 -translate-y-1/2 text-brand-primary hover:text-white disabled:opacity-50 p-2"
-                                 >
-                                     <Send className="h-5 w-5" />
-                                 </button>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
              )}
           </div>
         );
 
       case 'overview':
         return (
-           <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
-              <h2 className="text-2xl font-bold text-white mb-6">Dashboard Overview</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                 {[
-                    { label: 'Total Revenue', val: 'MK 190,000', icon: DollarSign, color: 'text-green-400', bg: 'bg-green-500/10' },
-                    { label: 'Active Projects', val: projects.length, icon: Briefcase, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                    { label: 'Pending Requests', val: bookings.filter(b=>b.status==='Pending').length, icon: Calendar, color: 'text-yellow-400', bg: 'bg-yellow-500/10', action: () => setActiveTab('bookings') },
-                    { label: 'Total Clients', val: '142', icon: UserIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                 ].map((stat, i) => (
-                    <div 
-                      key={i} 
-                      onClick={stat.action}
-                      className={`bg-[#1e293b] p-6 rounded-2xl border border-gray-700 ${stat.action ? 'cursor-pointer hover:border-gray-500' : ''}`}
-                    >
-                       <div className={`p-3 rounded-xl w-fit mb-4 ${stat.bg}`}><stat.icon className={`h-6 w-6 ${stat.color}`} /></div>
-                       <p className="text-gray-400 text-xs uppercase font-bold mb-1">{stat.label}</p>
-                       <h3 className="text-2xl font-bold text-white">{stat.val}</h3>
-                    </div>
-                 ))}
+          <div className="space-y-6 animate-fade-in">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 shadow-lg">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Revenue</p>
+                    <h3 className="text-2xl font-heading font-bold text-white mt-1">MK 450,000</h3>
+                  </div>
+                  <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                </div>
+                <span className="text-green-500 text-xs flex items-center gap-1 font-bold"><TrendingUp className="h-3 w-3" /> +15% from last month</span>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 h-80 flex flex-col">
-                    <h3 className="text-white font-bold mb-4">Revenue Trend</h3>
-                    <div className="flex-1 w-full min-h-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                         <AreaChart data={monthlyRevenueData}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><XAxis dataKey="month" stroke="#94a3b8" /><YAxis stroke="#94a3b8" tickFormatter={v=>`${v/1000}k`} /><Tooltip contentStyle={{backgroundColor:'#1e293b', borderColor:'#475569'}} /><Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} /></AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                 </div>
-                 <div className="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 h-80 flex flex-col">
-                    <h3 className="text-white font-bold mb-4">Service Popularity</h3>
-                    <div className="flex-1 w-full min-h-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                         <PieChart><Pie data={servicePopularityData} innerRadius={60} outerRadius={80} dataKey="value" paddingAngle={5}>{servicePopularityData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Tooltip contentStyle={{backgroundColor:'#1e293b', borderColor:'#475569'}} /></PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                 </div>
+
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 shadow-lg">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Active Projects</p>
+                    <h3 className="text-2xl font-heading font-bold text-white mt-1">{projects.filter(p => p.status === 'In Progress').length}</h3>
+                  </div>
+                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                    <Briefcase className="h-6 w-6" />
+                  </div>
+                </div>
+                <span className="text-gray-400 text-xs">3 due this week</span>
               </div>
-           </div>
+
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 shadow-lg">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Pending Bookings</p>
+                    <h3 className="text-2xl font-heading font-bold text-white mt-1">{bookings.filter(b => b.status === 'Pending').length}</h3>
+                  </div>
+                  <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500">
+                    <Calendar className="h-6 w-6" />
+                  </div>
+                </div>
+                <span className="text-yellow-500 text-xs font-bold">Action required</span>
+              </div>
+
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 shadow-lg">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Services</p>
+                    <h3 className="text-2xl font-heading font-bold text-white mt-1">{services.length}</h3>
+                  </div>
+                  <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
+                    <Video className="h-6 w-6" />
+                  </div>
+                </div>
+                <span className="text-gray-400 text-xs"> across 5 categories</span>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-[#1e293b] p-6 rounded-xl border border-gray-700 shadow-lg">
+                <h3 className="text-white font-bold mb-6">Revenue Overview</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={monthlyRevenueData}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis dataKey="month" stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                      <YAxis stroke="#94a3b8" style={{ fontSize: '12px' }} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#fff' }}
+                        itemStyle={{ color: '#fff' }}
+                      />
+                      <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-[#1e293b] p-6 rounded-xl border border-gray-700 shadow-lg">
+                <h3 className="text-white font-bold mb-6">Popular Services</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={servicePopularityData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {servicePopularityData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                         contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#fff' }}
+                         itemStyle={{ color: '#fff' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex justify-center gap-4 mt-4 flex-wrap">
+                    {servicePopularityData.map((entry, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                        <span className="text-xs text-gray-400">{entry.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Bookings */}
+            <div className="bg-[#1e293b] rounded-xl border border-gray-700 shadow-lg overflow-hidden">
+               <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                  <h3 className="text-white font-bold">Recent Bookings</h3>
+                  <button onClick={() => setActiveTab('bookings')} className="text-brand-primary text-sm font-bold hover:text-white transition-colors">View All</button>
+               </div>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                     <thead className="bg-[#0f172a] text-gray-400 uppercase text-xs font-bold">
+                        <tr>
+                           <th className="p-4">Client</th>
+                           <th className="p-4">Service</th>
+                           <th className="p-4">Date</th>
+                           <th className="p-4">Status</th>
+                           <th className="p-4 text-right">Amount</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-700">
+                        {bookings.slice(0, 5).map((booking) => (
+                           <tr key={booking.id} className="hover:bg-gray-800/50 transition-colors">
+                              <td className="p-4 font-medium text-white">{booking.clientName}</td>
+                              <td className="p-4 text-gray-300">{booking.serviceName || 'Unknown Service'}</td>
+                              <td className="p-4 text-gray-400">{booking.date}</td>
+                              <td className="p-4">
+                                 <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${
+                                    booking.status === 'Confirmed' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                                    booking.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 
+                                    booking.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                    'bg-red-500/10 text-red-400 border-red-500/20'
+                                 }`}>
+                                    {booking.status}
+                                 </span>
+                              </td>
+                              <td className="p-4 text-right text-white font-mono">MK {booking.amount?.toLocaleString()}</td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+          </div>
+        );
+
+        case 'services':
+        return isUploading ? (
+          <ServiceUploadForm 
+            onCancel={() => { setIsUploading(false); setEditingServiceData(null); }} 
+            onSave={async (service) => {
+               if (editingServiceData) {
+                  await api.updateService(service.id, service);
+                  setServices(services.map(s => s.id === service.id ? service : s));
+               } else {
+                  await api.createService(service);
+                  setServices([service, ...services]);
+               }
+               setIsUploading(false);
+               setEditingServiceData(null);
+            }}
+            initialData={editingServiceData}
+          />
+        ) : (
+          <div className="space-y-6 animate-fade-in">
+             <div className="flex justify-between items-center bg-[#1e293b] p-4 rounded-xl border border-gray-700">
+                <h2 className="text-xl font-bold text-white">Services Management</h2>
+                <button onClick={() => setIsUploading(true)} className="bg-brand-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all">
+                   <Plus className="h-5 w-5" /> Add New Service
+                </button>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {services.map((service) => (
+                   <div key={service.id} className="bg-[#1e293b] rounded-xl overflow-hidden border border-gray-700 hover:border-gray-500 transition-all shadow-lg group">
+                      <div className="h-40 bg-gray-800 relative">
+                         <img src={service.imageUrl || 'https://via.placeholder.com/400'} alt={service.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                         <div className="absolute top-2 right-2 flex gap-2">
+                            <button 
+                               onClick={() => {
+                                  setEditingServiceData(service);
+                                  setIsUploading(true);
+                               }}
+                               className="bg-blue-600 p-2 rounded-full text-white hover:bg-blue-500 shadow-md transform hover:scale-110 transition-all"
+                            >
+                               <Edit className="h-4 w-4" />
+                            </button>
+                            <button 
+                               onClick={async () => {
+                                  if(confirm('Are you sure you want to delete this service?')) {
+                                     await api.deleteService(service.id);
+                                     setServices(services.filter(s => s.id !== service.id));
+                                  }
+                               }}
+                               className="bg-red-600 p-2 rounded-full text-white hover:bg-red-500 shadow-md transform hover:scale-110 transition-all"
+                            >
+                               <Trash2 className="h-4 w-4" />
+                            </button>
+                         </div>
+                         <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold text-white border border-white/10">
+                            {service.category}
+                         </div>
+                      </div>
+                      <div className="p-4">
+                         <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-bold text-white text-lg leading-tight">{service.title}</h3>
+                            <span className="text-brand-accent font-bold text-sm whitespace-nowrap">{service.priceStart}</span>
+                         </div>
+                         <p className="text-gray-400 text-sm line-clamp-2 mb-4 h-10">{service.description}</p>
+                         <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                            <div className="flex -space-x-2">
+                               {service.tiers && service.tiers.length > 0 ? (
+                                  service.tiers.map((_, i) => (
+                                     <div key={i} className="w-6 h-6 rounded-full bg-gray-700 border-2 border-[#1e293b] flex items-center justify-center text-[8px] text-white">T{i+1}</div>
+                                  ))
+                               ) : (
+                                  <span className="text-xs text-gray-500">No tiers</span>
+                               )}
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full ${service.isActive !== false ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                               {service.isActive !== false ? 'Active' : 'Inactive'}
+                            </span>
+                         </div>
+                      </div>
+                   </div>
+                ))}
+             </div>
+          </div>
+        );
+
+      case 'bookings':
+        return (
+          <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+             <div className="flex justify-between items-center mb-6">
+                <div>
+                   <h2 className="text-2xl font-bold text-white">Booking Requests</h2>
+                   <p className="text-gray-400 text-sm">Manage client appointments and orders.</p>
+                </div>
+                <div className="flex gap-2">
+                   <button className="bg-[#1e293b] text-white px-4 py-2 rounded-lg border border-gray-700 flex items-center gap-2 hover:bg-gray-800">
+                      <Filter className="h-4 w-4" /> Filter
+                   </button>
+                   <button className="bg-[#1e293b] text-white px-4 py-2 rounded-lg border border-gray-700 flex items-center gap-2 hover:bg-gray-800">
+                      <Download className="h-4 w-4" /> Export
+                   </button>
+                </div>
+             </div>
+
+             <div className="bg-[#1e293b] rounded-xl border border-gray-700 overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                   <table className="w-full text-left text-sm">
+                      <thead className="bg-[#0f172a] text-gray-400 uppercase text-xs font-bold">
+                         <tr>
+                            <th className="p-4">ID</th>
+                            <th className="p-4">Client</th>
+                            <th className="p-4">Service Details</th>
+                            <th className="p-4">Date & Time</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 text-center">Actions</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-700">
+                         {bookings.map((booking) => (
+                            <tr key={booking.id} className="hover:bg-gray-800/50 transition-colors group">
+                               <td className="p-4 font-mono text-xs text-gray-500">#{booking.id.slice(-6)}</td>
+                               <td className="p-4">
+                                  <p className="font-bold text-white">{booking.clientName}</p>
+                                  <p className="text-xs text-gray-400">user@example.com</p>
+                               </td>
+                               <td className="p-4">
+                                  <p className="text-white font-medium">{booking.serviceName}</p>
+                                  <p className="text-xs text-brand-primary">{booking.tierName}</p>
+                               </td>
+                               <td className="p-4 text-gray-300">
+                                  <div className="flex items-center gap-2">
+                                     <Calendar className="h-3 w-3" /> {booking.date}
+                                  </div>
+                               </td>
+                               <td className="p-4">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${
+                                     booking.status === 'Confirmed' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                                     booking.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 
+                                     booking.status === 'Completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                     'bg-red-500/10 text-red-400 border-red-500/20'
+                                  }`}>
+                                     {booking.status}
+                                  </span>
+                               </td>
+                               <td className="p-4">
+                                  <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     {booking.status === 'Pending' && (
+                                        <>
+                                           <button onClick={() => handleBookingAction(booking.id, 'confirm')} className="bg-green-600 p-2 rounded hover:bg-green-500 text-white shadow-lg" title="Confirm">
+                                              <CheckCircle className="h-4 w-4" />
+                                           </button>
+                                           <button onClick={() => handleBookingAction(booking.id, 'cancel')} className="bg-red-600 p-2 rounded hover:bg-red-500 text-white shadow-lg" title="Cancel">
+                                              <X className="h-4 w-4" />
+                                           </button>
+                                        </>
+                                     )}
+                                     {booking.status === 'Confirmed' && (
+                                        <button onClick={() => handleBookingAction(booking.id, 'complete')} className="bg-blue-600 p-2 rounded hover:bg-blue-500 text-white shadow-lg" title="Mark Complete">
+                                           <CheckSquare className="h-4 w-4" />
+                                        </button>
+                                     )}
+                                     <button className="bg-gray-700 p-2 rounded hover:bg-gray-600 text-white shadow-lg">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                     </button>
+                                  </div>
+                               </td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+             </div>
+          </div>
+        );
+
+      case 'projects':
+        return (
+          <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                <div>
+                   <h2 className="text-2xl font-bold text-white">Active Projects</h2>
+                   <p className="text-gray-400 text-sm">Track progress and client deliverables.</p>
+                </div>
+                <div className="flex gap-4 w-full md:w-auto">
+                   <div className="relative flex-1 md:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-4 w-4" />
+                      <input 
+                         type="text" 
+                         value={projectSearch}
+                         onChange={(e) => setProjectSearch(e.target.value)}
+                         placeholder="Search projects..." 
+                         className="w-full bg-[#1e293b] border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white text-sm focus:border-brand-primary outline-none"
+                      />
+                   </div>
+                   <select 
+                      value={projectStatusFilter}
+                      onChange={(e) => setProjectStatusFilter(e.target.value)}
+                      className="bg-[#1e293b] border border-gray-700 rounded-lg px-4 py-2 text-white text-sm outline-none"
+                   >
+                      <option value="All">All Status</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Editing">Editing</option>
+                      <option value="Client Review">Client Review</option>
+                      <option value="Completed">Completed</option>
+                   </select>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProjects.map((project) => (
+                   <div key={project.id} className="bg-[#1e293b] rounded-xl border border-gray-700 p-6 flex flex-col shadow-lg hover:border-gray-500 transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${getProjectStatusColor(project.status)}`}>
+                            {project.status}
+                         </span>
+                         <button onClick={() => handleDeleteProject(project.id)} className="text-gray-500 hover:text-red-400">
+                            <Trash2 className="h-4 w-4" />
+                         </button>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-white mb-1">{project.title}</h3>
+                      <p className="text-sm text-gray-400 mb-4 flex items-center gap-2"><UserIcon className="h-3 w-3" /> {project.client}</p>
+                      
+                      <div className="mb-4">
+                         <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-400">Progress</span>
+                            <span className="text-brand-primary font-bold">{project.progress}%</span>
+                         </div>
+                         <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden cursor-pointer" title="Click to update">
+                            <div 
+                               className="bg-brand-primary h-full rounded-full transition-all duration-500" 
+                               style={{ width: `${project.progress}%` }}
+                            ></div>
+                            <input 
+                               type="range" 
+                               min="0" 
+                               max="100" 
+                               value={project.progress} 
+                               onChange={(e) => handleProjectProgress(project.id, parseInt(e.target.value))}
+                               className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                         </div>
+                      </div>
+
+                      <div className="space-y-3 mb-6 flex-1">
+                         <div className="flex items-center gap-2 text-xs text-gray-300">
+                            <Clock className="h-3 w-3" /> Due: <span className="text-white">{project.dueDate}</span>
+                         </div>
+                         {project.deliverables && project.deliverables.length > 0 && (
+                             <div className="space-y-1">
+                                 <p className="text-[10px] uppercase font-bold text-gray-500">Files</p>
+                                 {project.deliverables.map((del, idx) => (
+                                     <div key={idx} className="flex justify-between items-center text-xs bg-gray-800 p-2 rounded border border-gray-700">
+                                         <span className="truncate max-w-[150px] text-gray-300">{del.name}</span>
+                                         <button onClick={() => handleDeleteDeliverable(project.id, idx)} className="text-red-400 hover:text-red-300"><X className="h-3 w-3" /></button>
+                                     </div>
+                                 ))}
+                             </div>
+                         )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mt-auto">
+                         <button 
+                             onClick={() => handleAddDeliverable(project.id)}
+                             className="bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded-lg font-medium flex items-center justify-center gap-1"
+                         >
+                             <UploadCloud className="h-3 w-3" /> Upload File
+                         </button>
+                         <button 
+                             onClick={() => handleOpenActivities(project)}
+                             className="bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1 border border-brand-primary/30"
+                         >
+                             <Activity className="h-3 w-3" /> Activity Log
+                         </button>
+                      </div>
+                   </div>
+                ))}
+             </div>
+          </div>
         );
       
-      case 'services':
-        return isUploading ? (
-            <ServiceUploadForm onCancel={() => { setIsUploading(false); setEditingServiceData(null); }} onSave={() => { setIsUploading(false); setEditingServiceData(null); }} initialData={editingServiceData} />
-        ) : (
-            <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
-               <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold text-white">Services Packages</h2><button onClick={() => setIsUploading(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"><Plus className="h-4 w-4"/> Add Service</button></div>
-               {services.map(s => (
-                  <div key={s.id} className="bg-[#1e293b] border border-gray-700 rounded-xl p-6 flex gap-4 items-center group">
-                     <img src={s.imageUrl} className="w-20 h-20 rounded-lg object-cover bg-gray-800" />
-                     <div className="flex-1">
-                        <h3 className="text-white font-bold text-lg">{s.title}</h3>
-                        <p className="text-gray-400 text-sm">{s.category} • {s.priceStart}</p>
-                     </div>
-                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditingServiceData(s); setIsUploading(true); }} className="p-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white"><Edit className="h-4 w-4"/></button>
-                        <button className="p-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500 hover:text-white"><Trash2 className="h-4 w-4"/></button>
-                     </div>
-                  </div>
-               ))}
-            </div>
-        );
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row text-gray-100 font-sans">
-       <aside className={`w-full md:w-64 bg-[#0f172a] border-r border-gray-800 flex-shrink-0 flex flex-col md:h-screen sticky top-0 z-20 shadow-xl transition-all ${isMobileMenuOpen ? 'h-screen' : 'h-auto'}`}>
-          <div className="p-6 flex justify-between items-center">
-             <div><h1 className="text-white font-bold text-xl tracking-tight">STUDIO ADMIN</h1><p className="text-gray-500 text-xs mt-1 uppercase tracking-widest">Control Center</p></div>
-             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden text-gray-400"><Menu className="h-6 w-6" /></button>
+    <div className="min-h-screen bg-[#0f172a] text-gray-100 flex font-sans">
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#1e293b] border-r border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="h-full flex flex-col">
+          <div className="h-20 flex items-center px-6 border-b border-gray-700">
+            <h1 className="text-xl font-heading font-bold text-white tracking-wider">STUDIO ADMIN</h1>
           </div>
-          <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 overflow-hidden`}>
-              <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
-                 {sidebarItems.map((item) => (
-                    <button key={item.id} onClick={() => { setActiveTab(item.id as any); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-3 ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                       <item.icon className="h-5 w-5" /> {item.label}
-                    </button>
-                 ))}
-              </nav>
-              <div className="p-4 border-t border-gray-800">
-                  <div className="flex items-center gap-3 mb-4 px-2">
-                     <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">{user?.name?.charAt(0)}</div>
-                     <div className="overflow-hidden"><p className="text-white text-xs font-bold truncate">{user?.name}</p><p className="text-gray-500 text-xs truncate">Administrator</p></div>
-                  </div>
-                  <button onClick={onLogout} className="w-full text-left px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2 mb-2"><LogOut className="h-4 w-4" /> Sign Out</button>
-                  <button onClick={onLogout} className="w-full text-center px-4 py-2 rounded-full border border-gray-700 text-xs text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">Exit Dashboard View</button>
+
+          <div className="flex-1 overflow-y-auto py-4 space-y-1 px-3">
+            {sidebarItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => { setActiveTab(item.id as any); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group ${
+                    isActive 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <item.icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
+                  <span className="font-medium text-sm">{item.label}</span>
+                  {item.id === 'bookings' && bookings.filter(b => b.status === 'Pending').length > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {bookings.filter(b => b.status === 'Pending').length}
+                    </span>
+                  )}
+                  {item.id === 'messages' && chatConversations.reduce((acc, curr) => acc + curr.unread, 0) > 0 && (
+                      <span className="ml-auto bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          {chatConversations.reduce((acc, curr) => acc + curr.unread, 0)}
+                      </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center gap-3 mb-4 px-2">
+              <img src={user.avatar || "https://ui-avatars.com/api/?name=Admin"} alt="Admin" className="w-10 h-10 rounded-full border-2 border-blue-500" />
+              <div>
+                <p className="text-sm font-bold text-white truncate w-32">{user.name}</p>
+                <p className="text-xs text-green-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online</p>
               </div>
+            </div>
+            <button 
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white py-2.5 rounded-lg transition-colors text-sm font-bold"
+            >
+              <LogOut className="h-4 w-4" /> Sign Out
+            </button>
           </div>
-       </aside>
-       <main className="flex-1 p-6 md:p-8 overflow-y-auto relative z-10 custom-scrollbar">
-          {renderContent()}
-       </main>
-       {/* Floating Exit Button for Desktop */}
-       <div className="fixed bottom-6 right-6 z-50 hidden md:block">
-           <button onClick={onLogout} className="bg-[#1e293b] hover:bg-gray-700 text-gray-400 hover:text-white px-6 py-3 rounded-full border border-gray-700 shadow-2xl text-sm font-medium transition-all">Exit Dashboard View</button>
-       </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Header */}
+        <header className="h-20 bg-[#0f172a]/95 backdrop-blur-md border-b border-gray-700 flex items-center justify-between px-6 sticky top-0 z-30">
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden text-gray-400 hover:text-white"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          
+          <div className="flex items-center gap-4 ml-auto">
+             <div className="relative">
+                <Bell className="h-5 w-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0f172a]"></span>
+             </div>
+             <a href="/" target="_blank" className="text-sm text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 transition-colors">
+                View Site <ArrowUpRight className="h-3 w-3" />
+             </a>
+          </div>
+        </header>
+
+        {/* Content Body */}
+        <main className="flex-1 overflow-auto p-4 md:p-8 bg-[#0f172a] custom-scrollbar">
+          {isLoadingData ? (
+             <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                <Loader2 className="w-12 h-12 animate-spin mb-4 text-brand-primary" />
+                <p>Loading Studio Data...</p>
+             </div>
+          ) : (
+             renderContent()
+          )}
+        </main>
+      </div>
+
+      {/* Modals */}
+      {showActivityModal && currentProject && (
+         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-[#1e293b] w-full max-w-lg rounded-xl shadow-2xl border border-gray-700 flex flex-col max-h-[80vh]">
+               <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900/50 rounded-t-xl">
+                  <h3 className="font-bold text-white">Project Activity Log</h3>
+                  <button onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5"/></button>
+               </div>
+               <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {currentProject.activities?.map((act) => (
+                     <div key={act.id} className="flex gap-3">
+                        <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${act.type === 'success' ? 'bg-green-500' : act.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
+                        <div>
+                           <p className="text-sm text-gray-300">{act.text}</p>
+                           <p className="text-xs text-gray-500 mt-1">{act.date}</p>
+                        </div>
+                     </div>
+                  ))}
+                  {(!currentProject.activities || currentProject.activities.length === 0) && (
+                     <p className="text-gray-500 text-center italic text-sm">No activity recorded yet.</p>
+                  )}
+               </div>
+               <div className="p-4 border-t border-gray-700 bg-gray-900/50 rounded-b-xl">
+                  <div className="flex gap-2">
+                     <input 
+                        type="text" 
+                        value={activityNote}
+                        onChange={(e) => setActivityNote(e.target.value)}
+                        placeholder="Add a note..." 
+                        className="flex-1 bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-primary outline-none"
+                     />
+                     <button onClick={handleAddActivity} disabled={!activityNote.trim()} className="bg-brand-primary text-white p-2 rounded-lg hover:bg-blue-600 disabled:opacity-50">
+                        <Send className="h-4 w-4" />
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+      )}
     </div>
   );
 };
